@@ -1,0 +1,1 @@
+we can put our documents in this directory.
