@@ -1,9 +1,10 @@
 package main
 
 import (
+	"log"
+
 	"github.com/QBC8-Team7/MagicCrawler/config"
 	"github.com/QBC8-Team7/MagicCrawler/internal/app"
-	"log"
 )
 
 func main() {
@@ -18,6 +19,5 @@ func main() {
 	}
 
 	s := app.NewServer(cfg.Token)
-
-	s.Bot.Start()
+	s.Serve()
 }

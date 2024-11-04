@@ -1,9 +1,10 @@
 package app
 
 import (
-	"gopkg.in/telebot.v4"
 	"log"
 	"time"
+
+	"gopkg.in/telebot.v4"
 )
 
 type BotServer struct {
@@ -24,11 +25,11 @@ func NewServer(token string) *BotServer {
 	return &BotServer{Bot: bot}
 }
 
-func Serve(s *BotServer) {
+func (s *BotServer) Serve() {
 	bot := s.Bot
 
 	bot.Handle("/hello", func(c telebot.Context) error {
-		return c.Send("Hello!")
+		return c.Send("Helloooo!")
 	})
 
 	bot.Start()
