@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/QBC8-Team7/MagicCrawler/config"
+	"github.com/QBC8-Team7/MagicCrawler/internal/app"
 	"log"
 )
 
@@ -17,6 +17,7 @@ func main() {
 		log.Fatal("Could not parse config file: ", err)
 	}
 
-	fmt.Println(cfg.ConnectionURI)
+	s := app.NewServer(cfg.Token)
 
+	s.Bot.Start()
 }
