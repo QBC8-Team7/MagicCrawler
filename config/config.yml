@@ -1,9 +1,0 @@
-server:
-  host: "0.0.0.0"
-  port: ":8080"
-bot:
-  token: "7276776853:AAFQU3c4TjcUbgvVdV76Do4ZMjQx53RxeNA"
-database:
-  connectionURI: "postgres://telegrambot:botpassword@localhost:5432/telegrambot?sslmode=disable&pool_max_conns=100&pool_max_conn_lifetime=1h"
-crawler:
-  crawlTime: 10
