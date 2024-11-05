@@ -3,7 +3,7 @@ package repositories
 import (
 	"database/sql"
 	"fmt"
-	"github.com/QBC8-Team7/MagicCrawler/database/models"
+	"github.com/QBC8-Team7/MagicCrawler/internal/db/models"
 )
 
 type PublisherRepository interface {

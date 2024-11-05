@@ -2,5 +2,5 @@ package models
 
 type User struct {
 	ID uint64
-	// TODO: initial database then add attributes
+	// TODO: initial db then add attributes
 }
