@@ -4,11 +4,14 @@ import (
 	"log"
 	"time"
 
+	"github.com/QBC8-Team7/MagicCrawler/internal/server"
+	handlers "github.com/QBC8-Team7/MagicCrawler/internal/server"
 	"gopkg.in/telebot.v4"
 )
 
 type BotServer struct {
-	Bot *telebot.Bot
+	Bot     *telebot.Bot
+	Handler handlers.Handlers
 }
 
 func NewServer(token string) *BotServer {
@@ -28,9 +31,7 @@ func NewServer(token string) *BotServer {
 func (s *BotServer) Serve() {
 	bot := s.Bot
 
-	bot.Handle("/hello", func(c telebot.Context) error {
-		return c.Send("Helloooo!")
-	})
+	server.GenerateRoutes(bot, s.Handler)
 
 	bot.Start()
 }
