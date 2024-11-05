@@ -12,7 +12,9 @@
 -- drop table test;
 
 -- Drop tables if they already exist to avoid conflicts
-drop table if exists favorite_ads, ad_picture, price, ad, publisher, "user" CASCADE;
+drop table if exists favorite_ads, ad_picture, price, ad, publisher, "user" cascade;
+drop type if exists user_role, ad_category, house_type cascade;
+drop index if exists idx_ad_publisher, idx_price_ad, idx_favorite_ads_user cascade;
 
 -- Define enums
 create type user_role as enum ('super_admin', 'admin', 'simple');
@@ -57,7 +59,7 @@ create table ad
 -- Table for storing user information
 create table "user"
 (
-    tg_id            bigint primary key,
+    tg_id            varchar(31) primary key,
     role             user_role,
     watchlist_period int
 );
@@ -88,7 +90,7 @@ create table ad_picture
 create table favorite_ads
 (
     id      bigserial primary key,
-    user_id bigint references "user" (tg_id) on delete cascade,
+    user_id varchar(31) references "user" (tg_id) on delete cascade,
     ad_id   bigint references ad (id) on delete cascade
 );
 
