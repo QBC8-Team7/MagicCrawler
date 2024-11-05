@@ -1,0 +1,9 @@
+server:
+  host:
+  port:
+bot:
+  token:
+database:
+  connectionURI:
+crawler:
+  crawlTime:
