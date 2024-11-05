@@ -3,6 +3,7 @@ module github.com/QBC8-Team7/MagicCrawler
 go 1.22.3
 
 require (
+	github.com/lib/pq v1.10.9
 	github.com/spf13/viper v1.19.0
 	gopkg.in/telebot.v4 v4.0.0-beta.4
 )
