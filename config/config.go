@@ -9,9 +9,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Logger struct {
+	Level string
+}
 type Server struct {
-	Host string
-	Port string
+	Host       string
+	Port       string
+	Mode       string // development or production
+	AppVersion string
 }
 
 type Bot struct {
@@ -31,6 +36,7 @@ type Config struct {
 	Bot
 	Database
 	Crawler
+	Logger
 }
 
 func LoadConfig() (*Config, error) {
