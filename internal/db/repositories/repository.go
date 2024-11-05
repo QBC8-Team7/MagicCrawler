@@ -10,14 +10,14 @@ type Repository interface {
 }
 
 type repositoryImpl struct {
-	userRepo     UserRepository
-	publisherRep PublisherRepository
+	userRepo      UserRepository
+	publisherRepo PublisherRepository
 }
 
 func NewRepository(db *sql.DB) Repository {
 	return &repositoryImpl{
-		userRepo:     NewUserRepository(db),
-		publisherRep: NewPublisherRepository(db),
+		userRepo:      NewUserRepository(db),
+		publisherRepo: NewPublisherRepository(db),
 	}
 }
 
@@ -26,5 +26,5 @@ func (r *repositoryImpl) User() UserRepository {
 }
 
 func (r *repositoryImpl) Publisher() PublisherRepository {
-	return r.publisherRep
+	return r.publisherRepo
 }

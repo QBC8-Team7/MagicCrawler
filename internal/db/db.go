@@ -18,7 +18,7 @@ func GetDBConnection(uri string) *sql.DB {
 			log.Fatalf("Failed to connect to db: %v", err)
 		}
 
-		if err = conn.Ping(); err != nil {
+		if err = c.Ping(); err != nil {
 			log.Fatalf("Failed to ping db: %v", err)
 		}
 		conn = c
