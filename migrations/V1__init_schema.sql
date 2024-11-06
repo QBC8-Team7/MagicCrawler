@@ -1,3 +1,6 @@
+-- Set timezone to Tehran (UTC+3:30)
+alter database "magic-crawler" set timezone to 'Asia/Tehran';
+
 -- Some queries to check the connection
 -- create table "test"(
 --     id bigserial primary key,
