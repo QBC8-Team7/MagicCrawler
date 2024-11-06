@@ -1,1 +1,5 @@
 {"LEVEL":"info","TIME":1730842569.829976,"CALLER":"app/main.go:20","MESSAGE":"AppVersion: 0.0.1, LogLevel: info, Mode: development, SSL: %!v(MISSING)"}
+{"LEVEL":"info","TIME":1730932380.025849,"CALLER":"server/server.go:22","MESSAGE":"AppVersion: 0.0.1, LogLevel: info, Mode: development, SSL: %!v(MISSING)"}
+{"LEVEL":"info","TIME":1730932434.00461,"CALLER":"server/server.go:22","MESSAGE":"AppVersion: 0.0.1, LogLevel: info, Mode: development, SSL: %!v(MISSING)"}
+{"LEVEL":"info","TIME":1730932484.2637608,"CALLER":"server/server.go:22","MESSAGE":"AppVersion: 0.0.1, LogLevel: info, Mode: development, SSL: %!v(MISSING)"}
+{"LEVEL":"info","TIME":1730932488.6381829,"CALLER":"server/handlers.go:18","MESSAGE":"log from hello"}

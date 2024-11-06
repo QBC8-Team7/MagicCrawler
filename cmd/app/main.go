@@ -4,8 +4,7 @@ import (
 	"log"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
-	"github.com/QBC8-Team7/MagicCrawler/internal/app"
-	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
+	"github.com/QBC8-Team7/MagicCrawler/internal/server"
 )
 
 func main() {
@@ -14,11 +13,6 @@ func main() {
 		log.Fatal("Could not read config file: ", err)
 	}
 
-	appLogger := logger.NewApiLogger(cfg)
-
-	appLogger.InitLogger("app.log")
-	appLogger.Infof("AppVersion: %s, LogLevel: %s, Mode: %s, SSL: %v", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode)
-
-	s := app.NewServer(cfg.Token)
+	s := server.NewServer(cfg)
 	s.Serve()
 }
