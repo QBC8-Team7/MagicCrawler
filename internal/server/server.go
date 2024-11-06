@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
+	"github.com/QBC8-Team7/MagicCrawler/internal/middleware"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
 	"gopkg.in/telebot.v4"
 )
@@ -30,6 +31,7 @@ func NewServer(cfg *config.Config) *BotServer {
 	if err != nil {
 		log.Fatalf("Failed to create bot: %v", err)
 	}
+
 	handler := &Handlers{
 		Logger: appLogger,
 	}
@@ -42,7 +44,8 @@ func NewServer(cfg *config.Config) *BotServer {
 }
 
 func (s *BotServer) Serve() {
-	GenerateRoutes(s)
+	s.Bot.Use(middleware.WithLogging(s.Logger))
 
+	GenerateRoutes(s)
 	s.Bot.Start()
 }
