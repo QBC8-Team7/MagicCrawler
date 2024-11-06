@@ -50,6 +50,7 @@ create table ad
     rooms_count      int check (rooms_count >= 0),
     year             int check (year >= 0),
     floor            int,
+    total_floors     int,
     has_warehouse    boolean,
     has_elevator     boolean,
     lat              decimal(9, 6) check (lat between -90 and 90),
