@@ -18,8 +18,8 @@ drop index if exists idx_ad_publisher, idx_price_ad, idx_favorite_ads_user casca
 
 -- Define enums
 create type user_role as enum ('super_admin', 'admin', 'simple');
-create type ad_category as enum ('rent', 'buy', 'mortgage');
-create type house_type as enum ('apartment', 'villa');
+create type ad_category as enum ('rent', 'buy', 'mortgage', 'other');
+create type house_type as enum ('apartment', 'villa', 'other');
 
 -- Table for storing publishers
 create table publisher
@@ -48,7 +48,7 @@ create table ad
     house_type       house_type,
     meterage         int check (meterage >= 0),
     rooms_count      int check (rooms_count >= 0),
-    age              int check (age >= 0),
+    year             int check (year >= 0),
     floor            int,
     has_warehouse    boolean,
     has_elevator     boolean,

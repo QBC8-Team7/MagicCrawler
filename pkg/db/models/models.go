@@ -6,3 +6,8 @@ type Publisher struct {
 	Name string
 	URL  string
 }
+
+type User struct {
+	ID string
+	// TODO: initial db then add attributes
+}

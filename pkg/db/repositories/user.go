@@ -3,11 +3,11 @@ package repositories
 import (
 	"database/sql"
 	"fmt"
-	"github.com/QBC8-Team7/MagicCrawler/internal/db/models"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/models"
 )
 
 type UserRepository interface {
-	GetUserByID(id int) (*models.User, error)
+	GetUserByID(tgID string) (*models.User, error)
 }
 
 type userRepositoryImpl struct {
@@ -18,10 +18,10 @@ func NewUserRepository(db *sql.DB) UserRepository {
 	return &userRepositoryImpl{db: db}
 }
 
-func (r *userRepositoryImpl) GetUserByID(id int) (*models.User, error) {
+func (r *userRepositoryImpl) GetUserByID(tgID string) (*models.User, error) {
 	user := &models.User{}
-	query := `SELECT id FROM users WHERE id = $1`
-	err := r.db.QueryRow(query, id).Scan(&user.ID)
+	query := `SELECT tg_id FROM "user" WHERE tg_id = $1`
+	err := r.db.QueryRow(query, tgID).Scan(&user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("could not find user: %w", err)
 	}
