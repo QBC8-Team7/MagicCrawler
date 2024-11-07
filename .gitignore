@@ -31,5 +31,7 @@ vendor
 
 .DS_Store
 
-build/*
-tmp/*
+build
+tmp
+
+*.log

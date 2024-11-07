@@ -19,7 +19,7 @@ type BotServer struct {
 func NewServer(cfg *config.Config) *BotServer {
 	appLogger := logger.NewAppLogger(cfg)
 
-	appLogger.InitLogger("app.log")
+	appLogger.InitLogger(cfg.Logger.Path)
 	appLogger.Infof("AppVersion: %s, LogLevel: %s, Mode: %s, SSL: %v", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode)
 
 	settings := telebot.Settings{

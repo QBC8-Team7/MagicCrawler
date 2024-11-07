@@ -20,5 +20,7 @@ func (h *Handlers) HandleHello(c telebot.Context) error {
 }
 
 func (h *Handlers) HandleBye(c telebot.Context) error {
+	h.Logger.Info("log from Bye")
+
 	return c.Send("Bye!")
 }
