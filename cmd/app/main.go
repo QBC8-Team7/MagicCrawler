@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
 	"github.com/QBC8-Team7/MagicCrawler/internal/server"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db"
+	"github.com/jmoiron/sqlx"
 )
 
 func main() {
@@ -18,9 +21,28 @@ func main() {
 		log.Fatal("Could not read config file: ", err)
 	}
 
+	db_uri := db.GetDbUri(cfg)
+	db, err := db.GetDBConnection(db_uri, cfg.PgDriver)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer func(db *sqlx.DB) {
+		err := db.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(db)
+
 	s := server.NewServer(cfg)
 
 	go func() {
+		fmt.Println("Bot Server Started...")
 		s.Serve()
 	}()
 

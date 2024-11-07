@@ -1,4 +1,4 @@
-.PHONY: app-linux crawler-linux test run
+.PHONY: app-linux crawler-linux migrate-up migrate-down test run
 
 APP_LINUX_BIN=build/app-linux-amd64
 CRAWLER_LINUX_BIN=build/crawler-linux-amd64
@@ -9,6 +9,12 @@ app:
 crawler:
 	GOOS=linux GOARCH=amd64 go build -o build/crawler-linux-amd64 cmd/crawler/main.go
 
+migrate-up:
+	migrate -database "postgres://postgres:postgres@localhost:5432/magic-crawler?sslmode=disable" -path ./migrations up
+
+migrate-down:
+	migrate -database "postgres://postgres:postgres@localhost:5432/magic-crawler?sslmode=disable" -path ./migrations down
+	
 test:
 	go test ./...
 
