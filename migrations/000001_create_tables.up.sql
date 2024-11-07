@@ -1,31 +1,13 @@
 -- Set timezone to Tehran (UTC+3:30)
 alter database "magic-crawler" set timezone to 'Asia/Tehran';
 
--- Some queries to check the connection
--- create table "test"(
---     id bigserial primary key,
---     created_at timestamp default now(),
---     name varchar(255)
--- );
---
--- select * from "test";
---
--- insert into test (name) values ('ali'), ('mahdi');
---
--- drop table test;
-
--- Drop tables if they already exist to avoid conflicts
-drop table if exists favorite_ads, ad_picture, price, ad, publisher, "user" cascade;
-drop type if exists user_role, ad_category, house_type cascade;
-drop index if exists idx_ad_publisher, idx_price_ad, idx_favorite_ads_user cascade;
-
 -- Define enums
 create type user_role as enum ('super_admin', 'admin', 'simple');
 create type ad_category as enum ('rent', 'buy', 'mortgage', 'other');
 create type house_type as enum ('apartment', 'villa', 'other');
 
 -- Table for storing publishers
-create table publisher
+create table if not exists publisher
 (
     id   serial primary key,
     name varchar(31) not null,
@@ -33,7 +15,7 @@ create table publisher
 );
 
 -- Table for storing ads
-create table ad
+create table if not exists ad
 (
     id               bigserial primary key,
     publisher_ad_key varchar(255) unique not null,
@@ -61,7 +43,7 @@ create table ad
 );
 
 -- Table for storing user information
-create table "user"
+create table if not exists "user"
 (
     tg_id            varchar(31) primary key,
     role             user_role,
@@ -69,7 +51,7 @@ create table "user"
 );
 
 -- Table for storing prices
-create table price
+create table if not exists price
 (
     id              serial primary key,
     ad_id           bigint references ad (id) on delete cascade,
@@ -83,7 +65,7 @@ create table price
 );
 
 -- Table for storing ad pictures
-create table ad_picture
+create table if not exists ad_picture
 (
     id    bigserial primary key,
     ad_id bigint references ad (id) on delete cascade,
@@ -91,7 +73,7 @@ create table ad_picture
 );
 
 -- Table for storing user's favorite ads
-create table favorite_ads
+create table if not exists favorite_ads
 (
     id      bigserial primary key,
     user_id varchar(31) references "user" (tg_id) on delete cascade,
@@ -99,6 +81,6 @@ create table favorite_ads
 );
 
 -- Indexes for optimized searches
-create index idx_ad_publisher on ad (publisher_ad_key);
-create index idx_price_ad on price (ad_id);
-create index idx_favorite_ads_user on favorite_ads (user_id);
+create index if not exists idx_ad_publisher on ad (publisher_ad_key);
+create index if not exists idx_price_ad on price (ad_id);
+create index if not exists idx_favorite_ads_user on favorite_ads (user_id);
