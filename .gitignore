@@ -27,6 +27,7 @@ go.work.sum
 config/config.yml
 
 .idea
+vendor
 
 .DS_Store
 
