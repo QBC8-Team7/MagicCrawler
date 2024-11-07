@@ -1,0 +1,15 @@
+server:
+  host:
+  port:
+  mode:
+  appVersion:
+bot:
+  token:
+database:
+  connectionURI:
+crawler:
+  crawlTime:
+logger:
+  level:
+  encoding:
+  path:
