@@ -24,8 +24,15 @@ type Bot struct {
 	Token string
 }
 
-type Database struct {
-	ConnectionURI string
+type Postgres struct {
+	ConnectionURI      string
+	PostgresqlHost     string
+	PostgresqlPort     string
+	PostgresqlUser     string
+	PostgresqlPassword string
+	PostgresqlDbname   string
+	PostgresqlSslmode  bool
+	PgDriver           string
 }
 
 type Crawler struct {
@@ -35,7 +42,7 @@ type Crawler struct {
 type Config struct {
 	Server
 	Bot
-	Database
+	Postgres
 	Crawler
 	Logger
 }

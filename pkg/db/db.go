@@ -1,28 +1,54 @@
 package db
 
 import (
-	"database/sql"
-	_ "github.com/lib/pq" // PostgreSQL driver
-	"log"
+	"fmt"
 	"sync"
+
+	"github.com/QBC8-Team7/MagicCrawler/config"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
-var conn *sql.DB
-var once sync.Once
+var (
+	conn *sqlx.DB
+	once sync.Once
+)
 
-// GetDBConnection gets the uri of db and return the connection; it creates the connection only once
-func GetDBConnection(uri string) *sql.DB {
+func GetDBConnection(uri string) (*sqlx.DB, error) {
+	var initErr error
 	once.Do(func() {
-		c, err := sql.Open("postgres", uri)
+		db, err := sqlx.Connect("postgres", uri)
+		fmt.Println(db)
+		c, err := sqlx.Open("postgres", uri)
+		fmt.Println(uri)
 		if err != nil {
-			log.Fatalf("Failed to connect to db: %v", err)
+			initErr = fmt.Errorf("failed to connect to db: %v", err)
+			return
 		}
 
 		if err = c.Ping(); err != nil {
-			log.Fatalf("Failed to ping db: %v", err)
+			initErr = fmt.Errorf("failed to ping db: %v", err)
+			return
 		}
 		conn = c
 	})
 
-	return conn
+	if initErr != nil {
+		return nil, initErr
+	}
+
+	return conn, nil
+}
+
+func GetDbUri(cfg *config.Config) string {
+	dataSourceName := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s",
+		cfg.Postgres.PostgresqlHost,
+		cfg.Postgres.PostgresqlPort,
+		cfg.Postgres.PostgresqlUser,
+		cfg.Postgres.PostgresqlDbname,
+		cfg.Postgres.PostgresqlPassword,
+	)
+
+	return dataSourceName
+
 }

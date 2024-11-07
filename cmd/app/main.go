@@ -10,6 +10,8 @@ import (
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
 	"github.com/QBC8-Team7/MagicCrawler/internal/server"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db"
+	"github.com/jmoiron/sqlx"
 )
 
 func main() {
@@ -17,6 +19,24 @@ func main() {
 	if err != nil {
 		log.Fatal("Could not read config file: ", err)
 	}
+
+	db_uri := db.GetDbUri(cfg)
+	db, err := db.GetDBConnection(db_uri)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer func(db *sqlx.DB) {
+		err := db.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(db)
 
 	s := server.NewServer(cfg)
 
