@@ -6,7 +6,7 @@
 - [Bootup Documention](./doc/bootup.md)
 
 ## Release notes
-- [Release Notes](./doc/git-strategy.md)
+- [Release Notes](./doc/release-notes.md)
 
 ## Docs
 - [Project Architecture](./doc/architecture/design.png)
