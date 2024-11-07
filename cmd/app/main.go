@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -21,7 +22,7 @@ func main() {
 	}
 
 	db_uri := db.GetDbUri(cfg)
-	db, err := db.GetDBConnection(db_uri)
+	db, err := db.GetDBConnection(db_uri, cfg.PgDriver)
 
 	if err != nil {
 		log.Fatal(err)
@@ -41,6 +42,7 @@ func main() {
 	s := server.NewServer(cfg)
 
 	go func() {
+		fmt.Println("Bot Server Started...")
 		s.Serve()
 	}()
 

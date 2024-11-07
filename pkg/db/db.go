@@ -14,23 +14,16 @@ var (
 	once sync.Once
 )
 
-func GetDBConnection(uri string) (*sqlx.DB, error) {
+func GetDBConnection(uri, driver_name string) (*sqlx.DB, error) {
 	var initErr error
 	once.Do(func() {
-		db, err := sqlx.Connect("postgres", uri)
-		fmt.Println(db)
-		c, err := sqlx.Open("postgres", uri)
-		fmt.Println(uri)
+		db, err := sqlx.Connect(driver_name, uri)
+
 		if err != nil {
 			initErr = fmt.Errorf("failed to connect to db: %v", err)
 			return
 		}
-
-		if err = c.Ping(); err != nil {
-			initErr = fmt.Errorf("failed to ping db: %v", err)
-			return
-		}
-		conn = c
+		conn = db
 	})
 
 	if initErr != nil {
