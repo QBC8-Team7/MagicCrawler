@@ -14,10 +14,10 @@ var (
 	once sync.Once
 )
 
-func GetDBConnection(uri, driver_name string) (*sqlx.DB, error) {
+func GetDBConnection(uri, driverName string) (*sqlx.DB, error) {
 	var initErr error
 	once.Do(func() {
-		db, err := sqlx.Connect(driver_name, uri)
+		db, err := sqlx.Connect(driverName, uri)
 
 		if err != nil {
 			initErr = fmt.Errorf("failed to connect to db: %v", err)
