@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 	"log"
 	"time"
 
@@ -12,27 +13,28 @@ import (
 
 type BotServer struct {
 	Bot     *telebot.Bot
-	Handler *Handlers
+	Handler *Handler
 	Logger  *logger.AppLogger
+	DB      *sqlc.Queries
 }
 
-func NewServer(cfg *config.Config) *BotServer {
+func NewServer(cfg *config.Config, db *sqlc.Queries) *BotServer {
 	appLogger := logger.NewAppLogger(cfg)
 
 	appLogger.InitLogger(cfg.Logger.Path)
-	appLogger.Infof("AppVersion: %s, LogLevel: %s, Mode: %s, SSL: %v", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode)
+	appLogger.Infof("AppVersion: %s, LogLevel: %s, Mode: %s, SSL: %s", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode, "")
 
-	settings := telebot.Settings{
+	botSetting := telebot.Settings{
 		Token:  cfg.Bot.Token,
 		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 	}
 
-	bot, err := telebot.NewBot(settings)
+	bot, err := telebot.NewBot(botSetting)
 	if err != nil {
 		log.Fatalf("Failed to create bot: %v", err)
 	}
 
-	handler := &Handlers{
+	handler := &Handler{
 		Logger: appLogger,
 	}
 
@@ -40,6 +42,7 @@ func NewServer(cfg *config.Config) *BotServer {
 		Bot:     bot,
 		Handler: handler,
 		Logger:  appLogger,
+		DB:      db,
 	}
 }
 

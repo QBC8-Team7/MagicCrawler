@@ -1,45 +1,39 @@
 package db
 
 import (
+	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"sync"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 )
 
 var (
-	conn *sqlx.DB
+	conn *pgx.Conn
 	once sync.Once
 )
 
-func GetDBConnection(uri, driverName string) (*sqlx.DB, error) {
-	var initErr error
+func GetDBConnection(ctx context.Context, uri string) (c *pgx.Conn, e error) {
 	once.Do(func() {
-		db, err := sqlx.Connect(driverName, uri)
-
+		pgxConn, err := pgx.Connect(ctx, uri)
 		if err != nil {
-			initErr = fmt.Errorf("failed to connect to db: %v", err)
+			c, e = nil, err
 			return
 		}
-		conn = db
+		conn = pgxConn
 	})
 
-	if initErr != nil {
-		return nil, initErr
-	}
-
-	return conn, nil
+	return conn, e
 }
 
 func GetDbUri(cfg *config.Config) string {
 	dataSourceName := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s",
-		cfg.Postgres.PostgresqlHost,
-		cfg.Postgres.PostgresqlPort,
-		cfg.Postgres.PostgresqlUser,
-		cfg.Postgres.PostgresqlDbname,
-		cfg.Postgres.PostgresqlPassword,
+		cfg.Postgres.Host,
+		cfg.Postgres.Port,
+		cfg.Postgres.User,
+		cfg.Postgres.Dbname,
+		cfg.Postgres.Password,
 	)
 
 	return dataSourceName

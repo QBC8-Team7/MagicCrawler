@@ -5,8 +5,13 @@ server:
   appVersion:
 bot:
   token:
-database:
-  connectionURI:
+postgres:
+  host:
+  port:
+  user:
+  password:
+  dbname:
+  SslMode:
 crawler:
   crawlTime:
 logger:

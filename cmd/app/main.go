@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
+	"github.com/jackc/pgx/v5"
 	"log"
 	"os"
 	"os/signal"
@@ -12,37 +13,35 @@ import (
 	"github.com/QBC8-Team7/MagicCrawler/config"
 	"github.com/QBC8-Team7/MagicCrawler/internal/server"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db"
-	"github.com/jmoiron/sqlx"
 )
 
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal("Could not read config file: ", err)
+		log.Fatal("could not read config file: ", err)
 	}
 
-	db_uri := db.GetDbUri(cfg)
-	db, err := db.GetDBConnection(db_uri, cfg.PgDriver)
+	ctx := context.Background()
 
+	dbUri := db.GetDbUri(cfg)
+	dbConn, err := db.GetDBConnection(ctx, dbUri)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("could not connect to db: ", err)
 	}
 
-	if err != nil {
-		panic(err)
-	}
-
-	defer func(db *sqlx.DB) {
-		err := db.Close()
+	defer func(conn *pgx.Conn, ctx context.Context) {
+		err := conn.Close(ctx)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("could not close connection:", err)
 		}
-	}(db)
+	}(dbConn, ctx)
 
-	s := server.NewServer(cfg)
+	dbQueries := sqlc.New(dbConn)
+
+	s := server.NewServer(cfg, dbQueries)
 
 	go func() {
-		fmt.Println("Bot Server Started...")
+		log.Println("Bot Server Started...")
 		s.Serve()
 	}()
 

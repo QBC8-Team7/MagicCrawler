@@ -10,11 +10,17 @@ crawler:
 	GOOS=linux GOARCH=amd64 go build -o build/crawler-linux-amd64 cmd/crawler/main.go
 
 migrate-up:
-	migrate -database "postgres://postgres:postgres@localhost:5432/magic-crawler?sslmode=disable" -path ./migrations up
+	migrate -database "postgres://postgres:postgres@localhost:5432/magic-crawler?sslmode=disable" -path ./pkg/db/migration up
 
 migrate-down:
-	migrate -database "postgres://postgres:postgres@localhost:5432/magic-crawler?sslmode=disable" -path ./migrations down
-	
+	migrate -database "postgres://postgres:postgres@localhost:5432/magic-crawler?sslmode=disable" -path ./pkg/db/migration down
+
+sqlc-check:
+	sqlc compile -f config/sqlc.yml
+
+sqlc-gen:
+	sqlc generate -f config/sqlc.yml
+
 test:
 	go test ./...
 
