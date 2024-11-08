@@ -29,11 +29,11 @@ func GetDBConnection(ctx context.Context, uri string) (c *pgx.Conn, e error) {
 
 func GetDbUri(cfg *config.Config) string {
 	dataSourceName := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s",
-		cfg.Postgres.PostgresqlHost,
-		cfg.Postgres.PostgresqlPort,
-		cfg.Postgres.PostgresqlUser,
-		cfg.Postgres.PostgresqlDbname,
-		cfg.Postgres.PostgresqlPassword,
+		cfg.Postgres.Host,
+		cfg.Postgres.Port,
+		cfg.Postgres.User,
+		cfg.Postgres.Dbname,
+		cfg.Postgres.Password,
 	)
 
 	return dataSourceName

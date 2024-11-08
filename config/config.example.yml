@@ -6,12 +6,12 @@ server:
 bot:
   token:
 postgres:
-  postgresqlHost:
-  postgresqlPort:
-  postgresqlUser:
-  postgresqlPassword:
-  postgresqlDbname:
-  postgresqlSslmode:
+  host:
+  port:
+  user:
+  password:
+  dbname:
+  SslMode:
 crawler:
   crawlTime:
 logger:

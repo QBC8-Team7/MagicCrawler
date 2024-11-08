@@ -8,6 +8,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+type ServerMode string
+
+const (
+	Development ServerMode = "development"
+	Production  ServerMode = "production"
+)
+
 type Logger struct {
 	Level string
 	Path  string
@@ -15,7 +22,7 @@ type Logger struct {
 type Server struct {
 	Host       string
 	Port       string
-	Mode       string // development or production
+	Mode       ServerMode
 	AppVersion string
 }
 
@@ -24,13 +31,12 @@ type Bot struct {
 }
 
 type Postgres struct {
-	ConnectionURI      string
-	PostgresqlHost     string
-	PostgresqlPort     string
-	PostgresqlUser     string
-	PostgresqlPassword string
-	PostgresqlDbname   string
-	PostgresqlSslmode  bool
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Dbname   string
+	SslMode  bool
 }
 
 type Crawler struct {
@@ -46,7 +52,7 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	var c Config
+	var config Config
 	v := viper.New()
 
 	_, filename, _, ok := runtime.Caller(0)
@@ -64,10 +70,10 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("error reading config file: %w", err)
 	}
 
-	err := v.Unmarshal(&c)
+	err := v.Unmarshal(&config)
 	if err != nil {
 		return nil, err
 	}
 
-	return &c, nil
+	return &config, nil
 }
