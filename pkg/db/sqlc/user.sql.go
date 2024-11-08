@@ -11,19 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createAuthor = `-- name: CreateAuthor :one
+const createUser = `-- name: CreateUser :one
 INSERT INTO "user" (tg_id, role, watchlist_period)
-VALUES ($1, $2, 0)
+VALUES ($1, $2, $3)
 RETURNING tg_id, role, watchlist_period
 `
 
-type CreateAuthorParams struct {
-	TgID string
-	Role NullUserRole
+type CreateUserParams struct {
+	TgID            string
+	Role            NullUserRole
+	WatchlistPeriod pgtype.Int4
 }
 
-func (q *Queries) CreateAuthor(ctx context.Context, arg CreateAuthorParams) (User, error) {
-	row := q.db.QueryRow(ctx, createAuthor, arg.TgID, arg.Role)
+// Create a new user
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser, arg.TgID, arg.Role, arg.WatchlistPeriod)
 	var i User
 	err := row.Scan(&i.TgID, &i.Role, &i.WatchlistPeriod)
 	return i, err
@@ -35,7 +37,8 @@ FROM "user"
 WHERE tg_id = $1
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, tgID string) error {
+// Delete a user by Telegram ID
+func (q *Queries) DeleteUser(ctx context.Context, tgID pgtype.Text) error {
 	_, err := q.db.Exec(ctx, deleteUser, tgID)
 	return err
 }
@@ -44,17 +47,17 @@ const getAllUsers = `-- name: GetAllUsers :many
 SELECT tg_id, role, watchlist_period
 FROM "user"
 ORDER BY tg_id
-LIMIT $1
-OFFSET $2
+LIMIT $2 OFFSET $1
 `
 
 type GetAllUsersParams struct {
-	Limit  int32
-	Offset int32
+	Offset pgtype.Int4
+	Limit  pgtype.Int4
 }
 
+// Get all users with pagination
 func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]User, error) {
-	rows, err := q.db.Query(ctx, getAllUsers, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getAllUsers, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -80,28 +83,32 @@ WHERE tg_id = $1
 LIMIT 1
 `
 
-func (q *Queries) GetUserByTGID(ctx context.Context, tgID string) (User, error) {
+// Get user by Telegram ID
+func (q *Queries) GetUserByTGID(ctx context.Context, tgID pgtype.Text) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByTGID, tgID)
 	var i User
 	err := row.Scan(&i.TgID, &i.Role, &i.WatchlistPeriod)
 	return i, err
 }
 
-const updateUser = `-- name: UpdateUser :exec
+const updateUser = `-- name: UpdateUser :one
 UPDATE "user"
-set role             = $2,
-    watchlist_period = $3
-WHERE tg_id = $1
+SET role             = $1,
+    watchlist_period = $2
+WHERE tg_id = $3
 RETURNING tg_id, role, watchlist_period
 `
 
 type UpdateUserParams struct {
-	TgID            string
 	Role            NullUserRole
 	WatchlistPeriod pgtype.Int4
+	TgID            pgtype.Text
 }
 
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
-	_, err := q.db.Exec(ctx, updateUser, arg.TgID, arg.Role, arg.WatchlistPeriod)
-	return err
+// Update user role and watchlist period
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUser, arg.Role, arg.WatchlistPeriod, arg.TgID)
+	var i User
+	err := row.Scan(&i.TgID, &i.Role, &i.WatchlistPeriod)
+	return i, err
 }
