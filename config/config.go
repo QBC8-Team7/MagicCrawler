@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"runtime"
 
@@ -32,7 +31,6 @@ type Postgres struct {
 	PostgresqlPassword string
 	PostgresqlDbname   string
 	PostgresqlSslmode  bool
-	PgDriver           string
 }
 
 type Crawler struct {
@@ -68,7 +66,6 @@ func LoadConfig() (*Config, error) {
 
 	err := v.Unmarshal(&c)
 	if err != nil {
-		log.Printf("unable to decode into struct, %v", err)
 		return nil, err
 	}
 

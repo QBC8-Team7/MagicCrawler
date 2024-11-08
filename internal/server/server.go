@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 	"log"
 	"time"
 
@@ -14,9 +15,10 @@ type BotServer struct {
 	Bot     *telebot.Bot
 	Handler *Handlers
 	Logger  *logger.AppLogger
+	DB      *sqlc.Queries
 }
 
-func NewServer(cfg *config.Config) *BotServer {
+func NewServer(cfg *config.Config, db *sqlc.Queries) *BotServer {
 	appLogger := logger.NewAppLogger(cfg)
 
 	appLogger.InitLogger(cfg.Logger.Path)
@@ -40,6 +42,7 @@ func NewServer(cfg *config.Config) *BotServer {
 		Bot:     bot,
 		Handler: handler,
 		Logger:  appLogger,
+		DB:      db,
 	}
 }
 
