@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 	"github.com/jackc/pgx/v5"
 	"log"
@@ -26,6 +25,9 @@ func main() {
 
 	dbUri := db.GetDbUri(cfg)
 	dbConn, err := db.GetDBConnection(ctx, dbUri)
+	if err != nil {
+		log.Fatal("could not connect to db: ", err)
+	}
 
 	defer func(conn *pgx.Conn, ctx context.Context) {
 		err := conn.Close(ctx)
@@ -39,7 +41,7 @@ func main() {
 	s := server.NewServer(cfg, dbQueries)
 
 	go func() {
-		fmt.Println("Bot Server Started...")
+		log.Println("Bot Server Started...")
 		s.Serve()
 	}()
 
