@@ -1,7 +1,7 @@
 package server
 
 import (
-	"fmt"
+	"strconv"
 
 	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -16,57 +16,109 @@ type CommandHandler interface {
 type Handlers struct {
 	Logger *logger.AppLogger
 	Bot    *tgbotapi.BotAPI
+	Ad     Ad
 }
 
-func (h *Handlers) HandleStart(m *tgbotapi.Message, c *tgbotapi.BotAPI) error {
-	startMessage := "Welcome! 😊 Would you like to create a new ad? Click below to begin."
-
-	var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("create ad", "create_ad"),
-		),
-	)
-	msg := tgbotapi.NewMessage(m.Chat.ID, startMessage)
-	msg.ReplyMarkup = numericKeyboard
-
-	c.Send(msg)
-	return nil
+type Ad struct {
+	PublisherAdKey string
+	PublisherID    int
+	Category       string
+	Author         string
+	Url            string
+	Title          string
+	Description    string
+	City           string
+	Neighborhood   string
+	HouseType      string
+	Meterage       int
+	RoomsCount     int
+	Year           int
+	Floor          int
+	TotalFloors    int
+	HasWarehouse   bool
+	HasElevator    bool
+	Lat            float64
+	Lng            float64
 }
 
-func (h *Handlers) HandleCategory(update tgbotapi.Update) error {
+func (h *Handlers) StartFlow(bot *tgbotapi.BotAPI, chatID int64) {
+	msg := tgbotapi.NewMessage(chatID, "Welcome! Let's create your home ad. Please choose the category.")
 	categories := []string{"Apartment", "House", "Villa", "Studio"}
 
-	var buttons []tgbotapi.InlineKeyboardButton
+	var inlineButtons []tgbotapi.InlineKeyboardButton
 	for _, category := range categories {
-		buttons = append(buttons, tgbotapi.NewInlineKeyboardButtonData(category, "category_"+category))
+		inlineButtons = append(inlineButtons, tgbotapi.NewInlineKeyboardButtonData(category, "category_"+category))
 	}
 
-	menu := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(buttons...))
-	editMsg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "Please select an ad category:")
-	editMsg.ReplyMarkup = &menu
-	_, err := h.Bot.Send(editMsg)
-	return err
+	menu := tgbotapi.NewInlineKeyboardMarkup(inlineButtons)
+
+	msg.ReplyMarkup = menu
+
+	bot.Send(msg)
 }
 
-func (h *Handlers) HandleCategorySelection(update tgbotapi.Update) error {
-	selectedCategory := update.CallbackQuery.Data
+func (h *Handlers) HandleCategorySelection(bot *tgbotapi.BotAPI, chatID int64, category string) {
+	h.Ad.Category = category
 
-	menu := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Next: Title", "ask_title"),
-		),
-	)
-	editMsg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, fmt.Sprintf("You selected: %s", selectedCategory))
-	editMsg.ReplyMarkup = &menu
-	_, err := h.Bot.Send(editMsg)
-	return err
+	msg := tgbotapi.NewMessage(chatID, "Please enter the title of your ad (e.g., 2-bedroom apartment for rent):")
+	bot.Send(msg)
 }
 
-func (h *Handlers) HandleTitleAndDescription(update tgbotapi.Update) error {
-	editMsg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "Please enter the title of the ad (e.g., 2-bedroom apartment for rent):")
-	_, err := h.Bot.Send(editMsg)
-	return err
+func (h *Handlers) HandleTitle(bot *tgbotapi.BotAPI, chatID int64, title string) {
+	h.Ad.Title = title
+
+	msg := tgbotapi.NewMessage(chatID, "Please provide a description for your ad:")
+	bot.Send(msg)
 }
 
-// Additional functions for handling other commands (HandleLocation, HandleNeighborhood, etc.) would follow a similar pattern,
-// using tgbotapi.NewMessage or tgbotapi.NewEditMessageText depending on the interaction type.
+func (h *Handlers) HandleDescription(bot *tgbotapi.BotAPI, chatID int64, description string) {
+	h.Ad.Description = description
+
+	msg := tgbotapi.NewMessage(chatID, "Please enter the city where the property is located:")
+	bot.Send(msg)
+}
+
+func (h *Handlers) HandleCity(bot *tgbotapi.BotAPI, chatID int64, city string) {
+	h.Ad.City = city
+
+	msg := tgbotapi.NewMessage(chatID, "Please enter the neighborhood:")
+	bot.Send(msg)
+}
+
+func (h *Handlers) HandleNeighborhood(bot *tgbotapi.BotAPI, chatID int64, neighborhood string) {
+	h.Ad.Neighborhood = neighborhood
+
+	msg := tgbotapi.NewMessage(chatID, "Please enter the floor number of the property:")
+	bot.Send(msg)
+}
+
+func (h *Handlers) HandleFloor(bot *tgbotapi.BotAPI, chatID int64, floor string) {
+	floorInt, err := strconv.Atoi(floor)
+	if err == nil {
+		h.Ad.Floor = floorInt
+	}
+
+	msg := tgbotapi.NewMessage(chatID, "Please enter the total number of floors in the building:")
+	bot.Send(msg)
+}
+
+func (h *Handlers) HandleTotalFloors(bot *tgbotapi.BotAPI, chatID int64, totalFloors string) {
+	totalFloorsInt, err := strconv.Atoi(totalFloors)
+	if err == nil {
+		h.Ad.TotalFloors = totalFloorsInt
+	}
+
+	msg := tgbotapi.NewMessage(chatID, "Does the property have a warehouse? (Yes/No)")
+	bot.Send(msg)
+}
+
+func (h *Handlers) HandleBooleanInput(bot *tgbotapi.BotAPI, chatID int64, response string, field *bool) {
+	if response == "Yes" {
+		*field = true
+	} else {
+		*field = false
+	}
+
+	msg := tgbotapi.NewMessage(chatID, "Does the property have an elevator? (Yes/No)")
+	bot.Send(msg)
+}
