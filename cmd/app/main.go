@@ -41,8 +41,12 @@ func main() {
 	s := server.NewServer(cfg, dbQueries)
 
 	go func() {
+<<<<<<< HEAD
 		log.Println("Bot Server Started...")
 		s.Serve()
+=======
+		fmt.Println("Bot Server Started...")
+>>>>>>> bad6448 (feat: intial setup with tgbot)
 	}()
 
 	stop := make(chan os.Signal, 1)
@@ -54,7 +58,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Bot.Stop()
+	s.Bot.StopReceivingUpdates()
 
 	<-ctx.Done()
 
