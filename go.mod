@@ -13,6 +13,11 @@ require (
 )
 
 require (
+	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible // indirect
+	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
+)
+
+require (
 	github.com/PuerkitoBio/goquery v1.10.0
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect

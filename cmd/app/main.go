@@ -43,7 +43,6 @@ func main() {
 
 	go func() {
 		fmt.Println("Bot Server Started...")
-		s.Serve()
 	}()
 
 	stop := make(chan os.Signal, 1)
@@ -55,7 +54,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Bot.Stop()
+	s.Bot.StopReceivingUpdates()
 
 	<-ctx.Done()
 
