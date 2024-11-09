@@ -51,22 +51,22 @@ func NewServer(cfg *config.Config, db *sqlc.Queries) *BotServer {
 	}
 
 	for update := range updates {
-		if update.Message != nil { // If there is a message in this update
+		if update.Message != nil {
 			// Call the appropriate handler based on the message content
 			switch update.Message.Text {
 			case "/start":
 				// Use your custom handler for the /start command
-				err := handler.HandleStart(update.Message, bot)
+				handler.StartFlow(bot, update.Message.Chat.ID)
 				if err != nil {
 					log.Printf("Error handling /start: %v", err)
 				}
-			case "/help":
-				// Send a help message as an example (you can create a handler for this if needed)
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Available commands:\n/start - Start the bot\n/help - Show help")
-				_, err := bot.Send(msg)
-				if err != nil {
-					log.Printf("Failed to send message: %v", err)
-				}
+			// case "/help":
+			// 	// Send a help message as an example (you can create a handler for this if needed)
+			// 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Available commands:\n/start - Start the bot\n/help - Show help")
+			// 	_, err := bot.Send(msg)
+			// 	if err != nil {
+			// 		log.Printf("Failed to send message: %v", err)
+			// 	}
 			default:
 				// Default behavior for unknown commands
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Unknown command. Type /help for available commands.")
@@ -75,7 +75,34 @@ func NewServer(cfg *config.Config, db *sqlc.Queries) *BotServer {
 					log.Printf("Failed to send message: %v", err)
 				}
 			}
+		} else if update.CallbackQuery != nil {
+			callbackData := update.CallbackQuery.Data
+			_, err := bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, "You pressed: "+callbackData))
+			if err != nil {
+				log.Println("Error responding to callback:", err)
+			}
+			var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonURL("1.com", "http://1.com"),
+					tgbotapi.NewInlineKeyboardButtonData("2", "2"),
+					tgbotapi.NewInlineKeyboardButtonData("3", "3"),
+				),
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData("4", "4"),
+					tgbotapi.NewInlineKeyboardButtonData("5", "5"),
+					tgbotapi.NewInlineKeyboardButtonData("6", "6"),
+				),
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData("Submit", "6"),
+				),
+			)
+
+			msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "You pressed2: "+callbackData)
+			msg.ReplyMarkup = numericKeyboard
+
+			bot.Send(msg)
 		}
+
 	}
 
 	return &BotServer{

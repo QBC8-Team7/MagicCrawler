@@ -1,7 +1,7 @@
 package server
 
 import (
-	"log"
+	"fmt"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -10,14 +10,16 @@ import (
 func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update, h *Handlers) {
 	callback := update.CallbackQuery
 	// Handle different callback data values here
+	fmt.Println("=============", callback.Data)
 	switch callback.Data {
-	case "watchlist_action":
-		msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Your watchlist is empty!")
-		if _, err := bot.Send(msg); err != nil {
-			log.Printf("Failed to send callback message: %v", err)
-		}
+	case "create_ad":
+		fmt.Println("creaaaaaaaaaate ad")
+		// msg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Your watchlist is empty!")
+		// if _, err := bot.Send(msg); err != nil {
+		// 	log.Printf("Failed to send callback message: %v", err)
+		// }
 		// Send an answer to the callback query to remove the "waiting circle"
-		bot.AnswerCallbackQuery(tgbotapi.NewCallback(callback.ID, "Showing your watchlist"))
+		// bot.AnswerCallbackQuery(tgbotapi.NewCallback(callback.ID, "Showing your watchlist"))
 	default:
 		// Handle other callbacks if needed
 		bot.AnswerCallbackQuery(tgbotapi.NewCallback(callback.ID, "Unknown action"))
