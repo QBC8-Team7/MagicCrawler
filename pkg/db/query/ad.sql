@@ -125,3 +125,9 @@ SELECT ad.*
 FROM ad
          LEFT JOIN price ON price.ad_id = ad.id
 WHERE price.id IS NULL;
+
+-- Get PublisherAdKey for one specific ad
+-- name: GetAdsPublisherByAdKey :one
+SELECT ad.publisher_ad_key
+FROM ad
+WHERE ad.id = sqlc.narg('ad_key');
