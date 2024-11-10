@@ -37,8 +37,8 @@ type Ad struct {
 	TotalFloors    int
 	HasWarehouse   bool
 	HasElevator    bool
-	Lat            float64
-	Lng            float64
+	Lat            string
+	Lng            string
 }
 
 func (h *Handlers) StartFlow(bot *tgbotapi.BotAPI, chatID int64) {

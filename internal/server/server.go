@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 
@@ -19,8 +18,13 @@ type BotServer struct {
 	DB      *sqlc.Queries
 }
 
-var userStates = make(map[int64]*Ad)
-var userProgress = make(map[int64]int)
+type UserContext struct {
+	Command   string
+	CurrentAd *Ad
+	Progress  int
+}
+
+var userContext = make(map[int64]*UserContext)
 
 func NewServer(cfg *config.Config) *BotServer {
 	appLogger := logger.NewAppLogger(cfg)
@@ -52,160 +56,29 @@ func NewServer(cfg *config.Config) *BotServer {
 			userID := update.Message.Chat.ID
 			text := update.Message.Text
 
-			if text == "/addhouse" {
-				// Initialize ad and progress
-				userStates[userID] = &Ad{}
-				userProgress[userID] = 0
-				bot.Send(tgbotapi.NewMessage(userID, "Enter Publisher Ad Key:"))
-				continue
-			}
-
-			// Get user state and progress
-			ad, inProgress := userStates[userID]
-			progress, hasProgress := userProgress[userID]
-			if !inProgress || !hasProgress {
-				bot.Send(tgbotapi.NewMessage(userID, "Use /addhouse to start adding a new house."))
-				continue
-			}
-
-			// Handle each field by progress index
-			switch progress {
-			case 0: // PublisherAdKey
-				ad.PublisherAdKey = text
-				bot.Send(tgbotapi.NewMessage(userID, ""))
-				userProgress[userID]++
-			case 1: // PublisherID
-				if text != "" {
-					pid, err := strconv.Atoi(text)
-					if err == nil {
-						ad.PublisherID = pid
-					} else {
-						bot.Send(tgbotapi.NewMessage(userID, "Invalid number. Enter Publisher ID:"))
-						continue
-					}
+			switch text {
+			case "/addhouse":
+				userContext[userID] = &UserContext{
+					Command:   "addhouse",
+					CurrentAd: &Ad{},
+					Progress:  0,
 				}
-				bot.Send(tgbotapi.NewMessage(userID, "Enter Category (buy, rent, mortgage):"))
-				userProgress[userID]++
-			case 2: // Category
-				ad.Category = text
-				bot.Send(tgbotapi.NewMessage(userID, "Does the house have an elevator?"))
-				sendElevatorButtons(bot, userID)
-				userProgress[userID]++
-			case 12: // Author (optional)
-				if text != "" {
-					ad.Author = text
-				}
-				bot.Send(tgbotapi.NewMessage(userID, "Enter URL (optional, press Enter to skip):"))
-				userProgress[userID]++
-			// Continue handling other fields similarly...
-			case 4: // Title
-				ad.Title = text
-				bot.Send(tgbotapi.NewMessage(userID, "Enter Description (optional, press Enter to skip):"))
-				userProgress[userID]++
-			case 5: // Description
-				if text != "" {
-					ad.Description = text
-				}
-				bot.Send(tgbotapi.NewMessage(userID, "Enter City:"))
-				userProgress[userID]++
-			case 6: // City
-				ad.City = text
-				bot.Send(tgbotapi.NewMessage(userID, "Enter Neighborhood (optional, press Enter to skip):"))
-				userProgress[userID]++
-			case 7: // Neighborhood
-				if text != "" {
-					ad.Neighborhood = text
-				}
-				bot.Send(tgbotapi.NewMessage(userID, "Enter Meterage:"))
-				userProgress[userID]++
-			case 8: // Meterage
-				meterage, err := strconv.Atoi(text)
-				if err == nil && meterage >= 0 {
-					ad.Meterage = meterage
-					bot.Send(tgbotapi.NewMessage(userID, "Enter Rooms Count:"))
-					userProgress[userID]++
-				} else {
-					bot.Send(tgbotapi.NewMessage(userID, "Invalid number. Enter Meterage:"))
-				}
-			case 9: // RoomsCount
-				rooms, err := strconv.Atoi(text)
-				if err == nil && rooms >= 0 {
-					ad.RoomsCount = rooms
-					bot.Send(tgbotapi.NewMessage(userID, "Enter Year:"))
-					userProgress[userID]++
-				} else {
-					bot.Send(tgbotapi.NewMessage(userID, "Invalid number. Enter Rooms Count:"))
-				}
+				sendCategoryButtons(bot, userID)
 
-			case 10: // Year
-				year, err := strconv.Atoi(text)
-				if err == nil && year >= 1250 {
-					ad.Year = year
-					bot.Send(tgbotapi.NewMessage(userID, "Enter Floor number:"))
-					userProgress[userID]++
-				} else {
-					bot.Send(tgbotapi.NewMessage(userID, "Invalid year. Enter year"))
+			case "/updatehouse":
+				userContext[userID] = &UserContext{
+					Command:   "updatehouse",
+					CurrentAd: &Ad{}, // TODO: Load the ad to be updated here
+					Progress:  0,
 				}
-
-			case 11: // Floor
-				floor, err := strconv.Atoi(text)
-				if err == nil && floor >= 0 {
-					ad.Floor = floor
-					bot.Send(tgbotapi.NewMessage(userID, "Enter Total Floors:"))
-					userProgress[userID]++
-				} else {
-					bot.Send(tgbotapi.NewMessage(userID, "Invalid floor. Enter floor"))
-				}
-
-				// case 12: // Floor
-				// 	totalFloors, err := strconv.Atoi(text)
-				// 	if err == nil && totalFloors >= 0 {
-				// 		ad.TotalFloors = totalFloors
-				// 		bot.Send(tgbotapi.NewMessage(userID, "HasWarehouse: (y/n)"))
-				// 		userProgress[userID]++
-				// 	} else {
-				// 		bot.Send(tgbotapi.NewMessage(userID, "Invalid floor. Enter floor"))
-				// 	}
-
-				// Floor          int
-				// TotalFloors    int
-				// HasWarehouse   bool
-				// HasElevator    bool
-				// Lat            float64
-				// Lng            float64
-
-				// Continue with additional fields like Floor, TotalFloors, HasWarehouse, HasElevator, Lat, Lng, etc.
-			}
-
-			// After all fields are filled
-			if isAdComplete(ad) {
-				insertHouseToDB(ad)
-				bot.Send(tgbotapi.NewMessage(userID, "House added successfully!"))
-				// Clean up user state
-				delete(userStates, userID)
-				delete(userProgress, userID)
+				sendCategoryButtons(bot, userID)
+			default:
+				handleUserMessage(bot, update, userID)
 			}
 		}
 
 		if update.CallbackQuery != nil {
-			userID := update.CallbackQuery.Message.Chat.ID
-			data := update.CallbackQuery.Data
-
-			if ad, ok := userStates[userID]; ok {
-				progress := userProgress[userID]
-
-				switch progress {
-				case 3: // HasElevator
-					ad.HasElevator = data == "yes"
-					bot.Send(tgbotapi.NewMessage(userID, "Thank you! House data saved."))
-					// Insert ad into DB here if all fields are filled
-					delete(userStates, userID)
-					delete(userProgress, userID)
-				}
-
-				// Answer callback to remove loading indicator
-				bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, ""))
-			}
+			handleCallbackQuery(bot, update)
 		}
 	}
 
@@ -217,20 +90,74 @@ func NewServer(cfg *config.Config) *BotServer {
 	}
 }
 
+func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+	userID := update.CallbackQuery.Message.Chat.ID
+	context, ok := userContext[userID]
+	if !ok {
+		return
+	}
+
+	ad := context.CurrentAd
+	switch context.Progress {
+	case 0: // Category
+		ad.Category = update.CallbackQuery.Data
+		sendHouseTypeButtons(bot, userID)
+		context.Progress++
+
+	case 1: // HouseType
+		ad.Category = update.CallbackQuery.Data
+		sendWarehouseButtons(bot, userID)
+		context.Progress++
+
+	case 2: // Warehouse
+		ad.Category = update.CallbackQuery.Data
+		sendElevatorButtons(bot, userID)
+		context.Progress++
+
+	case 3: // Elevator
+		ad.Category = update.CallbackQuery.Data
+		bot.Send(tgbotapi.NewMessage(userID, "Enter Publisher Ad Key"))
+		context.Progress++
+	}
+
+	bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, ""))
+}
+
 func sendCategoryButtons(bot *tgbotapi.BotAPI, userID int64) {
-	// Define inline buttons for Category
+	buttons := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Rent", "rent"),
+			tgbotapi.NewInlineKeyboardButtonData("Buy", "buy"),
+			tgbotapi.NewInlineKeyboardButtonData("Mortgage", "mortgage"),
+		),
+	)
+	msg := tgbotapi.NewMessage(userID, "Select Ad Category")
+	msg.ReplyMarkup = buttons
+	bot.Send(msg)
+}
+
+func sendHouseTypeButtons(bot *tgbotapi.BotAPI, userID int64) {
 	buttons := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Apartment", "apartment"),
-			tgbotapi.NewInlineKeyboardButtonData("House", "house"),
-		),
-		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Villa", "villa"),
-			tgbotapi.NewInlineKeyboardButtonData("Studio", "studio"),
+		),
+	)
+	msg := tgbotapi.NewMessage(userID, "Select House Type")
+	msg.ReplyMarkup = buttons
+	bot.Send(msg)
+}
+
+func sendWarehouseButtons(bot *tgbotapi.BotAPI, userID int64) {
+	// Define inline buttons for HasWarehouse
+	buttons := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Yes", "yes"),
+			tgbotapi.NewInlineKeyboardButtonData("No", "no"),
 		),
 	)
 
-	msg := tgbotapi.NewMessage(userID, "Select Category:")
+	msg := tgbotapi.NewMessage(userID, "Does the house have a warehouse?")
 	msg.ReplyMarkup = buttons
 	bot.Send(msg)
 }
@@ -249,17 +176,179 @@ func sendElevatorButtons(bot *tgbotapi.BotAPI, userID int64) {
 	bot.Send(msg)
 }
 
-func allFieldsFilled(ad *Ad) bool {
-	// Check if all required fields are filled
-	return ad.PublisherAdKey != "" && ad.Category != "" // continue for other fields
-}
+func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int64) {
+	context, inProgress := userContext[userID]
+	if !inProgress {
+		bot.Send(tgbotapi.NewMessage(userID, "Use /addhouse or /updatehouse to start."))
+		return
+	}
 
-func insertHouseToDB(ad *Ad) {
-	// Insert ad into DB
-	fmt.Printf("Inserting house into DB: %+v\n", ad)
-	// Your database code here
+	ad := context.CurrentAd
+	text := update.Message.Text
+	switch context.Progress {
+	case 4:
+		// TODO: validate publisher ad key
+		if text != "" {
+			ad.PublisherAdKey = text
+			bot.Send(tgbotapi.NewMessage(userID, "Enter Publisher ID"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Publisher Ad Key again"))
+		}
+	case 5: // PublisherID
+		// TODO: validation
+		pid, err := strconv.Atoi(text)
+		if err == nil && pid > 0 {
+			ad.PublisherID = pid
+			bot.Send(tgbotapi.NewMessage(userID, "Enter Author"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Publisher ID again"))
+		}
+	case 6: // Author
+		// TODO: validation
+		if text != "" {
+			ad.Author = text
+			bot.Send(tgbotapi.NewMessage(userID, "Enter Title"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Author again"))
+		}
+	case 7: // Title
+		// TODO: validation
+		if text != "" {
+			ad.Title = text
+			bot.Send(tgbotapi.NewMessage(userID, "Enter Description"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Title again"))
+		}
+	case 8: // Description
+		// TODO: validation
+		if text != "" {
+			ad.Description = text
+			bot.Send(tgbotapi.NewMessage(userID, "Enter City"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Description again"))
+		}
+	case 9: // City
+		// TODO: validation
+		if text != "" {
+			ad.City = text
+			bot.Send(tgbotapi.NewMessage(userID, "Enter Neighborhood"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter City again"))
+		}
+	case 10: // Neighborhood
+		// TODO: validation
+		if text != "" {
+			ad.Neighborhood = text
+			bot.Send(tgbotapi.NewMessage(userID, "Enter Meterage"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Neighborhood again"))
+		}
+	case 11: // Meterage
+		// TODO: validation
+		meterage, err := strconv.Atoi(text)
+		if err == nil && meterage >= 0 {
+			ad.Meterage = meterage
+			bot.Send(tgbotapi.NewMessage(userID, "Enter Rooms Count"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Meterage again"))
+		}
+	case 12: // RoomsCount
+		// TODO: validation
+		rooms, err := strconv.Atoi(text)
+		if err == nil && rooms >= 0 {
+			ad.RoomsCount = rooms
+			bot.Send(tgbotapi.NewMessage(userID, "Enter Year"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Rooms Count again"))
+		}
+
+	case 13: // Year
+		// TODO: validation
+		year, err := strconv.Atoi(text)
+		if err == nil && year >= 1250 {
+			ad.Year = year
+			bot.Send(tgbotapi.NewMessage(userID, "Enter Floor number"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter year again"))
+		}
+
+	case 14: // Floor
+		// TODO: validation
+		floor, err := strconv.Atoi(text)
+		if err == nil && floor >= 0 {
+			ad.Floor = floor
+			bot.Send(tgbotapi.NewMessage(userID, "Enter Total Floors"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter floor again"))
+		}
+
+	case 15: // Total Floors
+		// TODO: validation
+		totalFloors, err := strconv.Atoi(text)
+		if err == nil && totalFloors >= 0 {
+			ad.TotalFloors = totalFloors
+			bot.Send(tgbotapi.NewMessage(userID, "Enter house latitude"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter total floors again"))
+		}
+
+	case 16: // Lat
+		// TODO: validation
+		if text != "" {
+			ad.Lat = text
+			bot.Send(tgbotapi.NewMessage(userID, "Enter house longitude"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter latitude again"))
+		}
+
+	case 17: // Lon
+		// TODO: validation
+		if text != "" {
+			ad.Lng = text
+			bot.Send(tgbotapi.NewMessage(userID, "Enter ad URL"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter longitude again"))
+		}
+
+	case 18: // URL
+		// TODO: validation
+		if text != "" {
+			ad.Url = text
+			context.Progress++
+
+			if isAdComplete(ad) {
+				if context.Command == "addhouse" {
+					// TODO: insert ad to DB
+					bot.Send(tgbotapi.NewMessage(userID, "House added successfully."))
+				} else if context.Command == "updatehouse" {
+					// TODO: update ad
+					bot.Send(tgbotapi.NewMessage(userID, "House updated successfully."))
+				}
+				delete(userContext, userID)
+			}
+
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter URL again"))
+		}
+	}
+
 }
 
 func isAdComplete(ad *Ad) bool {
-	return ad.PublisherAdKey != "" && ad.Category != "" && ad.Meterage > 0 && ad.RoomsCount > 0 // and other mandatory fields
+	// TODO: check if ad is OK
+	return true
 }
