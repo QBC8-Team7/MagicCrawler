@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
-	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
-	"github.com/jackc/pgx/v5"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
 	"github.com/QBC8-Team7/MagicCrawler/internal/server"
@@ -41,12 +43,7 @@ func main() {
 	s := server.NewServer(cfg, dbQueries)
 
 	go func() {
-<<<<<<< HEAD
-		log.Println("Bot Server Started...")
-		s.Serve()
-=======
 		fmt.Println("Bot Server Started...")
->>>>>>> bad6448 (feat: intial setup with tgbot)
 	}()
 
 	stop := make(chan os.Signal, 1)
