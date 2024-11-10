@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
-	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
-	"github.com/jackc/pgx/v5"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
 	"github.com/QBC8-Team7/MagicCrawler/internal/server"
@@ -38,11 +40,10 @@ func main() {
 
 	dbQueries := sqlc.New(dbConn)
 
-	s := server.NewServer(cfg, dbQueries)
+	s := server.NewServer(ctx, cfg, dbQueries)
 
 	go func() {
-		log.Println("Bot Server Started...")
-		s.Serve()
+		fmt.Println("Bot Server Started...")
 	}()
 
 	stop := make(chan os.Signal, 1)
@@ -54,7 +55,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s.Bot.Stop()
+	s.Bot.StopReceivingUpdates()
 
 	<-ctx.Done()
 

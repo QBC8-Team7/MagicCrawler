@@ -3,8 +3,9 @@ package db
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"sync"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
 )
@@ -37,5 +38,4 @@ func GetDbUri(cfg *config.Config) string {
 	)
 
 	return dataSourceName
-
 }
