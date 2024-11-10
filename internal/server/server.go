@@ -56,27 +56,35 @@ func NewServer(cfg *config.Config) *BotServer {
 			text := update.Message.Text
 
 			switch text {
-			case "/addhouse":
+			case "/start":
+				sendWellcome(bot, chatID, update.Message.From)
+
+			default:
+				handleUserMessage(bot, update, chatID)
+
+			}
+		}
+		if update.CallbackQuery != nil {
+			action := update.CallbackQuery.Data
+			chatID := update.CallbackQuery.Message.Chat.ID
+
+			switch action {
+			case "ad_create":
 				userContext[chatID] = &UserContext{
 					Command:   "addhouse",
 					CurrentAd: &Ad{},
 					Progress:  0,
 				}
 				sendCategoryButtons(bot, chatID)
-
-			case "/updatehouse":
+			case "ad_update":
 				userContext[chatID] = &UserContext{
 					Command:   "updatehouse",
-					CurrentAd: &Ad{}, // TODO: Load the ad to be updated here
+					CurrentAd: &Ad{},
 					Progress:  0,
 				}
 				sendCategoryButtons(bot, chatID)
-			default:
-				handleUserMessage(bot, update, chatID)
 			}
-		}
 
-		if update.CallbackQuery != nil {
 			handleCallbackQuery(bot, update)
 		}
 	}

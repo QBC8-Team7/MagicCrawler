@@ -68,6 +68,33 @@ func replaceMessage(bot *tgbotapi.BotAPI, userID int64, text string, buttons *tg
 	}
 }
 
+func sendWellcome(bot *tgbotapi.BotAPI, userID int64, user *tgbotapi.User) {
+	welcomeText := fmt.Sprintf("👋 Welcome, %s!\n\n", user.FirstName)
+	welcomeText += "This bot helps you find home ads in Tehran 🏡. It gathers data from Shypoor and Divar 📱.\n\n"
+	welcomeText += "What would you like to do today? 🤔\n\n"
+
+	buttons := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Search Ads 🔍", "ad_search"),
+			tgbotapi.NewInlineKeyboardButtonData("My Watch List 👀", "ad_watchlist"),
+		),
+	)
+
+	superUserID := int64(7417976949)
+	if userID == superUserID {
+		buttons.InlineKeyboard = append(buttons.InlineKeyboard,
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Create a Ad 🛠️", "ad_create"),
+				tgbotapi.NewInlineKeyboardButtonData("Create a Ad 🛠️", "ad_delete"),
+				tgbotapi.NewInlineKeyboardButtonData("Create a Ad 🛠️", "ad_update"),
+			),
+		)
+	}
+
+	replaceMessage(bot, userID, welcomeText, &buttons)
+
+}
+
 func sendCategoryButtons(bot *tgbotapi.BotAPI, userID int64) {
 	buttons := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -122,6 +149,7 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	}
 
 	ad := context.CurrentAd
+	fmt.Println(context.Progress)
 	switch context.Progress {
 	case 0: // Category
 		ad.Category = update.CallbackQuery.Data
@@ -254,6 +282,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter year again"))
 		}
+
 	case 14: // Floor
 		// TODO: validation
 		floor, err := strconv.Atoi(text)
@@ -262,17 +291,60 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Total Floors"))
 			context.Progress++
 		} else {
-			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Floor number again"))
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter floor again"))
 		}
-	case 15: // TotalFloors
+
+	case 15: // Total Floors
 		// TODO: validation
-		floors, err := strconv.Atoi(text)
-		if err == nil && floors >= 0 {
-			ad.TotalFloors = floors
-			bot.Send(tgbotapi.NewMessage(userID, "Does it have a warehouse?"))
+		totalFloors, err := strconv.Atoi(text)
+		if err == nil && totalFloors >= 0 {
+			ad.TotalFloors = totalFloors
+			bot.Send(tgbotapi.NewMessage(userID, "Enter house latitude"))
 			context.Progress++
 		} else {
-			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Total Floors again"))
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter total floors again"))
+		}
+
+	case 16: // Lat
+		// TODO: validation
+		if text != "" {
+			ad.Lat = text
+			bot.Send(tgbotapi.NewMessage(userID, "Enter house longitude"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter latitude again"))
+		}
+
+	case 17: // Lon
+		// TODO: validation
+		if text != "" {
+			ad.Lng = text
+			bot.Send(tgbotapi.NewMessage(userID, "Enter ad URL"))
+			context.Progress++
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter longitude again"))
+		}
+
+	case 18: // URL
+		// TODO: validation
+		if text != "" {
+			ad.Url = text
+			context.Progress++
+
+			if isAdComplete(ad) {
+				if context.Command == "addhouse" {
+					// TODO: insert ad to DB
+
+					bot.Send(tgbotapi.NewMessage(userID, "House added successfully: \n\n"+fmt.Sprintln(context.CurrentAd)))
+				} else if context.Command == "updatehouse" {
+					// TODO: update ad
+					bot.Send(tgbotapi.NewMessage(userID, "House updated successfully."))
+				}
+				delete(userContext, userID)
+			}
+
+		} else {
+			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter URL again"))
 		}
 	}
 }
