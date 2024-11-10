@@ -271,7 +271,8 @@ func handleUserMessage(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotap
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Rooms Count again"))
 		}
-
+		// where do we get price???
+		// where do we get image file
 	case 13: // Year
 		year, err := strconv.Atoi(text)
 		if err == nil && year >= 1250 {
@@ -303,6 +304,7 @@ func handleUserMessage(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotap
 		}
 
 	case 16: // Lat
+		// todo get location
 		// TODO: validation
 		if text != "" {
 			ad.Lat = text
@@ -323,6 +325,7 @@ func handleUserMessage(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotap
 		}
 
 	case 18: // URL
+		// TODO: get image
 		// TODO: url validation
 		if text != "" {
 			ad.Url = text
@@ -331,7 +334,7 @@ func handleUserMessage(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotap
 			if userCtx.Command == "addhouse" {
 				// TODO: insert ad to DB
 				myAd := userCtx.CurrentAd
-
+				// TODO: use factory/builder pattern
 				ad := &sqlc.CreateAdParams{
 					PublisherAdKey: myAd.PublisherAdKey,
 					PublisherID:    pgtype.Int4{Int32: int32(myAd.PublisherID), Valid: true},
