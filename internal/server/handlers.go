@@ -79,13 +79,14 @@ func sendWellcome(bot *tgbotapi.BotAPI, userID int64, user *tgbotapi.User) {
 		),
 	)
 
+	// TODO: we must retirve user status(superadmin) from DB
 	superUserID := int64(7417976949)
 	if userID == superUserID {
 		buttons.InlineKeyboard = append(buttons.InlineKeyboard,
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Create a Ad 🛠️", "ad_create"),
-				tgbotapi.NewInlineKeyboardButtonData("Create a Ad 🛠️", "ad_delete"),
-				tgbotapi.NewInlineKeyboardButtonData("Create a Ad 🛠️", "ad_update"),
+				tgbotapi.NewInlineKeyboardButtonData("Create Ad 🛠️", "ad_create"),
+				tgbotapi.NewInlineKeyboardButtonData("Update Ad 🛠️", "ad_update"),
+				tgbotapi.NewInlineKeyboardButtonData("Delete Ad 🛠️", "ad_delete"),
 			),
 		)
 	}
@@ -205,7 +206,6 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Publisher ID again"))
 		}
 	case 6: // Author
-		// TODO: validation
 		if text != "" {
 			ad.Author = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Title"))
@@ -214,7 +214,6 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Author again"))
 		}
 	case 7: // Title
-		// TODO: validation
 		if text != "" {
 			ad.Title = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Description"))
@@ -223,7 +222,6 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Title again"))
 		}
 	case 8: // Description
-		// TODO: validation
 		if text != "" {
 			ad.Description = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter City"))
@@ -232,7 +230,6 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Description again"))
 		}
 	case 9: // City
-		// TODO: validation
 		if text != "" {
 			ad.City = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Neighborhood"))
@@ -241,7 +238,6 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter City again"))
 		}
 	case 10: // Neighborhood
-		// TODO: validation
 		if text != "" {
 			ad.Neighborhood = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Meterage"))
@@ -250,7 +246,6 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Neighborhood again"))
 		}
 	case 11: // Meterage
-		// TODO: validation
 		meterage, err := strconv.Atoi(text)
 		if err == nil && meterage >= 0 {
 			ad.Meterage = meterage
@@ -260,7 +255,6 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Meterage again"))
 		}
 	case 12: // RoomsCount
-		// TODO: validation
 		rooms, err := strconv.Atoi(text)
 		if err == nil && rooms >= 0 {
 			ad.RoomsCount = rooms
@@ -271,7 +265,6 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		}
 
 	case 13: // Year
-		// TODO: validation
 		year, err := strconv.Atoi(text)
 		if err == nil && year >= 1250 {
 			ad.Year = year
@@ -282,7 +275,6 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		}
 
 	case 14: // Floor
-		// TODO: validation
 		floor, err := strconv.Atoi(text)
 		if err == nil && floor >= 0 {
 			ad.Floor = floor
@@ -293,7 +285,6 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		}
 
 	case 15: // Total Floors
-		// TODO: validation
 		totalFloors, err := strconv.Atoi(text)
 		if err == nil && totalFloors >= 0 {
 			ad.TotalFloors = totalFloors
@@ -331,11 +322,11 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 
 			if isAdComplete(ad) {
 				if context.Command == "addhouse" {
-					// TODO: insert ad to DB
 
 					bot.Send(tgbotapi.NewMessage(userID, "House added successfully: \n\n"+fmt.Sprintln(context.CurrentAd)))
 				} else if context.Command == "updatehouse" {
-					// TODO: update ad
+					// TODO: we can not use command anymore
+					// we must find another way
 					bot.Send(tgbotapi.NewMessage(userID, "House updated successfully."))
 				}
 				delete(userContext, userID)
