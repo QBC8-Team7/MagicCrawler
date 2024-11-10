@@ -40,7 +40,7 @@ func main() {
 
 	dbQueries := sqlc.New(dbConn)
 
-	s := server.NewServer(cfg, dbQueries)
+	s := server.NewServer(ctx, cfg, dbQueries)
 
 	go func() {
 		fmt.Println("Bot Server Started...")

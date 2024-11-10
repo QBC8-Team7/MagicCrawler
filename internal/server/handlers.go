@@ -1,12 +1,17 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"math/big"
 	"strconv"
+	"time"
 
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type CommandHandler interface {
@@ -17,6 +22,8 @@ type CommandHandler interface {
 
 type Handlers struct {
 	Logger *logger.AppLogger
+	DB     *sqlc.Queries
+	DbCtx  context.Context
 	Bot    *tgbotapi.BotAPI
 	Ad     Ad
 }
@@ -85,8 +92,8 @@ func sendWellcome(bot *tgbotapi.BotAPI, userID int64, user *tgbotapi.User) {
 		buttons.InlineKeyboard = append(buttons.InlineKeyboard,
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData("Create Ad 🛠️", "ad_create"),
-				tgbotapi.NewInlineKeyboardButtonData("Update Ad 🛠️", "ad_update"),
-				tgbotapi.NewInlineKeyboardButtonData("Delete Ad 🛠️", "ad_delete"),
+				tgbotapi.NewInlineKeyboardButtonData("Update Ad 🔄", "ad_update"),
+				tgbotapi.NewInlineKeyboardButtonData("Delete Ad 🗑️", "ad_delete"),
 			),
 		)
 	}
@@ -136,62 +143,63 @@ func sendElevatorButtons(bot *tgbotapi.BotAPI, userID int64) {
 	replaceMessage(bot, userID, "Does the house have an elevator?", &buttons)
 }
 
-func isAdComplete(ad *Ad) bool {
-	// TODO: check if ad is OK
-	return true
-}
-
 func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	userID := update.CallbackQuery.Message.Chat.ID
-	context, ok := userContext[userID]
+	userCtx, ok := userContext[userID]
 	if !ok {
 		return
 	}
 
-	ad := context.CurrentAd
-	switch context.Progress {
+	ad := userCtx.CurrentAd
+	switch userCtx.Progress {
 	case 0: // Category
+		// TODO: get categories from db
 		ad.Category = update.CallbackQuery.Data
 		sendHouseTypeButtons(bot, userID)
-		context.Progress++
+		userCtx.Progress++
 
 	case 1: // HouseType
+		// TODO: get house type from db
 		ad.Category = update.CallbackQuery.Data
 		sendWarehouseButtons(bot, userID)
-		context.Progress++
+		userCtx.Progress++
 
 	case 2: // Warehouse
 		ad.Category = update.CallbackQuery.Data
 		sendElevatorButtons(bot, userID)
-		context.Progress++
+		userCtx.Progress++
 
 	case 3: // Elevator
 		ad.Category = update.CallbackQuery.Data
 		bot.Send(tgbotapi.NewMessage(userID, "Enter Publisher Ad Key"))
-		context.Progress++
+		userCtx.Progress++
 	}
 
 	bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, ""))
 }
 
-func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int64) {
-	context, inProgress := userContext[userID]
+// TODO: pass logger
+// TODO: support edit mode
+func handleUserMessage(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int64, db sqlc.Queries) {
+	userCtx, inProgress := userContext[userID]
+
 	if !inProgress {
-		bot.Send(tgbotapi.NewMessage(userID, "Use /addhouse or /updatehouse to start."))
+		bot.Send(tgbotapi.NewMessage(userID, "invalid command"))
 		return
 	}
 
-	ad := context.CurrentAd
+	ad := userCtx.CurrentAd
 	text := update.Message.Text
 
-	switch context.Progress {
+	switch userCtx.Progress {
 	case 4:
 		// TODO: validate publisher ad key
+		// TODO: no need to ask in create mode. we must set Bot as default
 		if text != "" {
 			ad.PublisherAdKey = text
 
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Publisher ID"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Publisher Ad Key again"))
 		}
@@ -201,7 +209,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if err == nil && pid > 0 {
 			ad.PublisherID = pid
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Author"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Publisher ID again"))
 		}
@@ -209,7 +217,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if text != "" {
 			ad.Author = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Title"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Author again"))
 		}
@@ -217,7 +225,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if text != "" {
 			ad.Title = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Description"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Title again"))
 		}
@@ -225,7 +233,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if text != "" {
 			ad.Description = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter City"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Description again"))
 		}
@@ -233,7 +241,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if text != "" {
 			ad.City = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Neighborhood"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter City again"))
 		}
@@ -241,7 +249,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if text != "" {
 			ad.Neighborhood = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Meterage"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Neighborhood again"))
 		}
@@ -250,7 +258,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if err == nil && meterage >= 0 {
 			ad.Meterage = meterage
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Rooms Count"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Meterage again"))
 		}
@@ -259,7 +267,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if err == nil && rooms >= 0 {
 			ad.RoomsCount = rooms
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Year"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter Rooms Count again"))
 		}
@@ -269,7 +277,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if err == nil && year >= 1250 {
 			ad.Year = year
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Floor number"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter year again"))
 		}
@@ -279,7 +287,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if err == nil && floor >= 0 {
 			ad.Floor = floor
 			bot.Send(tgbotapi.NewMessage(userID, "Enter Total Floors"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter floor again"))
 		}
@@ -289,7 +297,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if err == nil && totalFloors >= 0 {
 			ad.TotalFloors = totalFloors
 			bot.Send(tgbotapi.NewMessage(userID, "Enter house latitude"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter total floors again"))
 		}
@@ -299,7 +307,7 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if text != "" {
 			ad.Lat = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter house longitude"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter latitude again"))
 		}
@@ -309,28 +317,59 @@ func handleUserMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update, userID int6
 		if text != "" {
 			ad.Lng = text
 			bot.Send(tgbotapi.NewMessage(userID, "Enter ad URL"))
-			context.Progress++
+			userCtx.Progress++
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter longitude again"))
 		}
 
 	case 18: // URL
-		// TODO: validation
+		// TODO: url validation
 		if text != "" {
 			ad.Url = text
-			context.Progress++
+			userCtx.Progress++
 
-			if isAdComplete(ad) {
-				if context.Command == "addhouse" {
+			if userCtx.Command == "addhouse" {
+				// TODO: insert ad to DB
+				myAd := userCtx.CurrentAd
 
-					bot.Send(tgbotapi.NewMessage(userID, "House added successfully: \n\n"+fmt.Sprintln(context.CurrentAd)))
-				} else if context.Command == "updatehouse" {
-					// TODO: we can not use command anymore
-					// we must find another way
-					bot.Send(tgbotapi.NewMessage(userID, "House updated successfully."))
+				ad := &sqlc.CreateAdParams{
+					PublisherAdKey: myAd.PublisherAdKey,
+					PublisherID:    pgtype.Int4{Int32: int32(myAd.PublisherID), Valid: true},
+					PublishedAt:    pgtype.Timestamp{Time: time.Now(), Valid: true},
+					Category:       sqlc.NullAdCategory{AdCategory: sqlc.AdCategory(myAd.Category), Valid: myAd.Category != ""},
+					Author:         pgtype.Text{String: myAd.Author, Valid: myAd.Author != ""},
+					Url:            pgtype.Text{String: myAd.Url, Valid: myAd.Url != ""},
+					Title:          pgtype.Text{String: myAd.Title, Valid: myAd.Title != ""},
+					Description:    pgtype.Text{String: myAd.Description, Valid: myAd.Description != ""},
+					City:           pgtype.Text{String: myAd.City, Valid: myAd.City != ""},
+					Neighborhood:   pgtype.Text{String: myAd.Neighborhood, Valid: myAd.Neighborhood != ""},
+					HouseType:      sqlc.NullHouseType{HouseType: sqlc.HouseType(myAd.HouseType), Valid: myAd.HouseType != ""},
+					Meterage:       pgtype.Int4{Int32: int32(myAd.Meterage), Valid: myAd.Meterage > 0},
+					RoomsCount:     pgtype.Int4{Int32: int32(myAd.RoomsCount), Valid: myAd.RoomsCount > 0},
+					Year:           pgtype.Int4{Int32: int32(myAd.Year), Valid: myAd.Year > 0},
+					Floor:          pgtype.Int4{Int32: int32(myAd.Floor), Valid: myAd.Floor > 0},
+					TotalFloors:    pgtype.Int4{Int32: int32(myAd.TotalFloors), Valid: myAd.TotalFloors > 0},
+					HasWarehouse:   pgtype.Bool{Bool: myAd.HasWarehouse, Valid: true},
+					HasElevator:    pgtype.Bool{Bool: myAd.HasElevator, Valid: true},
+					Lat:            pgtype.Numeric{Int: big.NewInt(1), Valid: true},
+					Lng:            pgtype.Numeric{Int: big.NewInt(2), Valid: true},
 				}
-				delete(userContext, userID)
+
+				_, err := db.CreateAd(ctx, *ad)
+
+				if err != nil {
+					// add logger for here too
+					fmt.Println(err)
+					bot.Send(tgbotapi.NewMessage(userID, "Something went wrong"))
+
+				} else {
+					bot.Send(tgbotapi.NewMessage(userID, "House added successfully: \n\n"))
+				}
+			} else if userCtx.Command == "updatehouse" {
+				// TODO: update ad
+				bot.Send(tgbotapi.NewMessage(userID, "House updated successfully."))
 			}
+			delete(userContext, userID)
 
 		} else {
 			bot.Send(tgbotapi.NewMessage(userID, "Invalid value. Enter URL again"))

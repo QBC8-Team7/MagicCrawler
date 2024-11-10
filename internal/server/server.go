@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"log"
 
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
@@ -14,7 +15,6 @@ type BotServer struct {
 	Bot     *tgbotapi.BotAPI
 	Handler *Handlers
 	Logger  *logger.AppLogger
-	DB      *sqlc.Queries
 }
 
 type UserContext struct {
@@ -25,7 +25,7 @@ type UserContext struct {
 
 var userContext = make(map[int64]*UserContext)
 
-func NewServer(cfg *config.Config, db *sqlc.Queries) *BotServer {
+func NewServer(ctx context.Context, cfg *config.Config, db *sqlc.Queries) *BotServer {
 	appLogger := logger.NewAppLogger(cfg)
 
 	appLogger.InitLogger(cfg.Logger.Path)
@@ -38,6 +38,8 @@ func NewServer(cfg *config.Config, db *sqlc.Queries) *BotServer {
 
 	handler := &Handlers{
 		Logger: appLogger,
+		DB:     db,
+		DbCtx:  ctx,
 	}
 	log.Printf("Authorized on account %s\n\n", bot.Self.UserName)
 
@@ -59,10 +61,8 @@ func NewServer(cfg *config.Config, db *sqlc.Queries) *BotServer {
 			switch text {
 			case "/start":
 				sendWellcome(bot, chatID, update.Message.From)
-
 			default:
-				handleUserMessage(bot, update, chatID)
-
+				handleUserMessage(ctx, bot, update, chatID, *db)
 			}
 		}
 		if update.CallbackQuery != nil {
@@ -94,6 +94,5 @@ func NewServer(cfg *config.Config, db *sqlc.Queries) *BotServer {
 		Bot:     bot,
 		Handler: handler,
 		Logger:  appLogger,
-		DB:      db,
 	}
 }
