@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
@@ -32,19 +31,17 @@ func NewServer(cfg *config.Config, db *sqlc.Queries) *BotServer {
 	appLogger.InitLogger(cfg.Logger.Path)
 	appLogger.Infof("AppVersion: %s, LogLevel: %s, Mode: %s, SSL: %s", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode, "")
 
-	fmt.Println("bot")
-
 	bot, err := tgbotapi.NewBotAPI(cfg.Bot.Token)
 	if err != nil {
 		log.Fatalf("Failed to create bot: %v", err)
 	}
-	fmt.Println(bot)
 
 	handler := &Handlers{
 		Logger: appLogger,
 	}
-	// bot.Debug = cfg.Server.Mode == "development"
-	log.Printf("Authorized on account %s", bot.Self.UserName)
+	log.Printf("Authorized on account %s\n\n", bot.Self.UserName)
+
+	bot.Debug = cfg.Server.Mode == "development"
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60

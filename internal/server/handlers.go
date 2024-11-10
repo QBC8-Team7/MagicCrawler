@@ -47,7 +47,6 @@ var lastMessageID = make(map[int64]int)
 
 func replaceMessage(bot *tgbotapi.BotAPI, userID int64, text string, buttons *tgbotapi.InlineKeyboardMarkup) {
 	if msgID, exists := lastMessageID[userID]; exists {
-		fmt.Println(msgID)
 		editMsg := tgbotapi.NewEditMessageText(userID, msgID, text)
 		editMsg.ReplyMarkup = buttons
 		_, err := bot.Send(editMsg)
@@ -149,7 +148,6 @@ func handleCallbackQuery(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	}
 
 	ad := context.CurrentAd
-	fmt.Println(context.Progress)
 	switch context.Progress {
 	case 0: // Category
 		ad.Category = update.CallbackQuery.Data
