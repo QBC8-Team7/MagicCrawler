@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 
@@ -14,7 +15,10 @@ import (
 )
 
 func main() {
-	conf, err := config.LoadConfig()
+	configPath := flag.String("c", "config.yml", "Path to the configuration file")
+	flag.Parse()
+
+	conf, err := config.LoadConfig(*configPath)
 	if err != nil {
 		log.Fatalln(fmt.Errorf("load config error: %w", err))
 	}
@@ -24,7 +28,7 @@ func main() {
 	dbUri := db.GetDbUri(conf)
 	dbConn, err := db.GetDBConnection(dbContext, dbUri)
 	if err != nil {
-		log.Fatalln(fmt.Errorf("could not connect to dataabse: %w", err))
+		log.Fatalln(fmt.Errorf("could not connect to database: %w", err))
 	}
 
 	defer func(conn *pgx.Conn, ctx context.Context) {

@@ -3,14 +3,14 @@
 APP_LINUX_BIN=build/app-linux-amd64
 CRAWLER_LINUX_BIN=build/crawler-linux-amd64
 
-app:
+app-linux:
 	GOOS=linux GOARCH=amd64 go build -o $(APP_LINUX_BIN) cmd/app/main.go
 
 crawler:
 	GOOS=linux GOARCH=amd64 go build -o build/crawler-linux-amd64 cmd/crawler/main.go
 
 run-app:
-	go run ./cmd/app/main.go
+	go run ./cmd/app/main.go -c ./config/config.yml
 
 new-migrate:
 	migrate create -ext sql -dir ./pkg/db/migration -seq $(name)
