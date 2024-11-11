@@ -512,7 +512,7 @@ WHERE ad.id = $1
 `
 
 // Get PublisherAdKey for one specific ad
-func (q *Queries) GetAdsPublisherByAdKey(ctx context.Context, adKey pgtype.Int8) (string, error) {
+func (q *Queries) GetAdsPublisherByAdKey(ctx context.Context, adKey *int64) (string, error) {
 	row := q.db.QueryRow(ctx, getAdsPublisherByAdKey, adKey)
 	var publisher_ad_key string
 	err := row.Scan(&publisher_ad_key)
