@@ -7,33 +7,29 @@ package sqlc
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createPrice = `-- name: CreatePrice :one
 INSERT INTO price (ad_id, fetched_at, has_price, total_price, price_per_meter, mortgage, normal_price, weekend_price)
-VALUES (
-           $1,
-           NOW(),  -- Automatically set the current timestamp for fetched_at
-           $2,
-           $3,
-           $4,
-           $5,
-           $6,
-           $7
-       )
+VALUES ($1,
+        NOW(),
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7)
 RETURNING id, ad_id, fetched_at, has_price, total_price, price_per_meter, mortgage, normal_price, weekend_price
 `
 
 type CreatePriceParams struct {
-	AdID          pgtype.Int8
-	HasPrice      pgtype.Bool
-	TotalPrice    pgtype.Int8
-	PricePerMeter pgtype.Int8
-	Mortgage      pgtype.Int8
-	NormalPrice   pgtype.Int8
-	WeekendPrice  pgtype.Int8
+	AdID          int64  `json:"ad_id"`
+	HasPrice      *bool  `json:"has_price"`
+	TotalPrice    *int64 `json:"total_price"`
+	PricePerMeter *int64 `json:"price_per_meter"`
+	Mortgage      *int64 `json:"mortgage"`
+	NormalPrice   *int64 `json:"normal_price"`
+	WeekendPrice  *int64 `json:"weekend_price"`
 }
 
 // Insert a new price entry for a specific ad

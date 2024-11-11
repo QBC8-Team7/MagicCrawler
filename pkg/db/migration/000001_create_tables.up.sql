@@ -18,8 +18,8 @@ create table if not exists publisher
 create table if not exists ad
 (
     id               bigserial primary key,
-    publisher_ad_key varchar(255) unique not null,
-    publisher_id     int                 references publisher (id) on delete set null,
+    publisher_ad_key varchar(255) not null,
+    publisher_id     int          references publisher (id) on delete set null,
     created_at       timestamp default now(),
     updated_at       timestamp,
     published_at     timestamp,
@@ -38,6 +38,7 @@ create table if not exists ad
     total_floors     int,
     has_warehouse    boolean,
     has_elevator     boolean,
+    has_parking      boolean,
     lat              decimal(9, 6) check (lat between -90 and 90),
     lng              decimal(9, 6) check (lng between -180 and 180)
 );
@@ -54,7 +55,7 @@ create table if not exists "user"
 create table if not exists price
 (
     id              serial primary key,
-    ad_id           bigint references ad (id) on delete cascade,
+    ad_id           bigint not null references ad (id) on delete cascade,
     fetched_at      timestamp default now(),
     has_price       boolean,
     total_price     bigint check (total_price >= 0),
@@ -74,6 +75,14 @@ create table if not exists ad_picture
 
 -- Table for storing user's favorite ads
 create table if not exists favorite_ads
+(
+    id      bigserial primary key,
+    user_id varchar(31) references "user" (tg_id) on delete cascade,
+    ad_id   bigint references ad (id) on delete cascade
+);
+
+-- Table for storing user and ad relationships
+create table if not exists user_ads
 (
     id      bigserial primary key,
     user_id varchar(31) references "user" (tg_id) on delete cascade,

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"time"
@@ -40,26 +39,21 @@ func EchoRequestLogger(logger *logger.AppLogger) echo.MiddlewareFunc {
 func EchoAuthentication(ctx context.Context, db *sqlc.Queries) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			auth := c.Request().Header.Get("Authorization")
-			if auth == "" {
+			userTgID := c.Request().Header.Get("Authorization")
+			if userTgID == "" {
 				return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header required")
 			}
 
-			var tgID pgtype.Text
-			if err := tgID.Scan(auth); err != nil {
-				return echo.NewHTTPError(http.StatusUnauthorized, "Invalid Authorization format (tha value is not a valid user role)")
-			}
-
 			var user sqlc.User
-			user, err := db.GetUserByTGID(ctx, tgID)
+			user, err := db.GetUserByTGID(ctx, userTgID)
 			if err != nil {
 				var role sqlc.NullUserRole
-				var period pgtype.Int4
-
 				_ = role.Scan("simple")
-				_ = period.Scan("0")
 
-				param := sqlc.CreateUserParams{TgID: tgID.String, Role: role, WatchlistPeriod: period}
+				var period int32
+				period = 0
+
+				param := sqlc.CreateUserParams{TgID: userTgID, Role: role, WatchlistPeriod: &period}
 				user, err = db.CreateUser(ctx, param)
 				if err != nil {
 					return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("can not create user: %w", err))
@@ -67,6 +61,7 @@ func EchoAuthentication(ctx context.Context, db *sqlc.Queries) echo.MiddlewareFu
 			}
 
 			c.Set("UserRole", user.Role.UserRole)
+
 			return next(c)
 		}
 	}

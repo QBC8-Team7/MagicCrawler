@@ -7,6 +7,7 @@ import (
 	"github.com/QBC8-Team7/MagicCrawler/internal/middleware"
 	"github.com/labstack/echo/v4"
 	echoMiddlewares "github.com/labstack/echo/v4/middleware"
+	"log"
 	"net/http"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
@@ -64,7 +65,9 @@ func (s *Server) Run() error {
 
 	s.router.Use(middleware.EchoRequestLogger(s.logger))
 	s.router.Use(middleware.EchoAuthentication(s.dbContext, s.db))
-	return s.router.Start(fmt.Sprintf("%s:%s", s.cfg.Server.Host, s.cfg.Server.Port))
+	addr := fmt.Sprintf("%s:%s", s.cfg.Server.Host, s.cfg.Server.Port)
+	log.Println(addr)
+	return s.router.Start(addr)
 }
 
 const SourceCodeUrl = "https://github.com/your-repo" // Define the source code URL
