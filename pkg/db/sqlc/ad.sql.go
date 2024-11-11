@@ -505,6 +505,20 @@ func (q *Queries) GetAdsByPublisher(ctx context.Context, publisherID *int32) ([]
 	return items, nil
 }
 
+const getAdsPublisherByAdKey = `-- name: GetAdsPublisherByAdKey :one
+SELECT ad.publisher_ad_key
+FROM ad
+WHERE ad.id = $1
+`
+
+// Get PublisherAdKey for one specific ad
+func (q *Queries) GetAdsPublisherByAdKey(ctx context.Context, adKey pgtype.Int8) (string, error) {
+	row := q.db.QueryRow(ctx, getAdsPublisherByAdKey, adKey)
+	var publisher_ad_key string
+	err := row.Scan(&publisher_ad_key)
+	return publisher_ad_key, err
+}
+
 const getAdsWithoutPrice = `-- name: GetAdsWithoutPrice :many
 SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
 FROM ad
