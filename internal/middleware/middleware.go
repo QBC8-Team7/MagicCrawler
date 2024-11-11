@@ -50,8 +50,7 @@ func EchoAuthentication(ctx context.Context, db *sqlc.Queries) echo.MiddlewareFu
 				var role sqlc.NullUserRole
 				_ = role.Scan("simple")
 
-				var period int32
-				period = 0
+				period := int32(0)
 
 				param := sqlc.CreateUserParams{TgID: userTgID, Role: role, WatchlistPeriod: &period}
 				user, err = db.CreateUser(ctx, param)

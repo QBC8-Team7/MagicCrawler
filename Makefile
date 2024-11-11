@@ -10,7 +10,7 @@ crawler:
 	GOOS=linux GOARCH=amd64 go build -o build/crawler-linux-amd64 cmd/crawler/main.go
 
 run-app:
-	go run ./cmd/app/main.go -c ./config/config.yml
+	go run ./cmd/app/main.go -c ./config.yml
 
 new-migrate:
 	migrate create -ext sql -dir ./pkg/db/migration -seq $(name)

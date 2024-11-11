@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 )
@@ -22,7 +22,7 @@ func GetHtml(url string) (string, error) {
 		return "", fmt.Errorf("non-OK HTTP status: %s", res.Status)
 	}
 
-	htmlContent, err := ioutil.ReadAll(res.Body)
+	htmlContent, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", fmt.Errorf("error reading response body: %w", err)
 	}
