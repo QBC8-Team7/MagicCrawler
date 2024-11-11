@@ -5,8 +5,8 @@ go 1.23
 toolchain go1.23.0
 
 require (
+	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/jackc/pgx/v5 v5.7.1
-	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/spf13/viper v1.19.0
 	go.uber.org/zap v1.27.0
