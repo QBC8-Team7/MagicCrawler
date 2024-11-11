@@ -12,3 +12,8 @@ func healthCheckHandler(c echo.Context) error {
 func (s *Server) rootHandler(c echo.Context) error {
 	return c.JSON(200, map[string]string{"status": "very OK"})
 }
+
+func (s *Server) createAdHandler(c echo.Context) error {
+
+	return c.JSON(200, map[string]string{"status": "very OK", "message": "create me bro"})
+}

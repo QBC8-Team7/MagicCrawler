@@ -202,3 +202,8 @@ type User struct {
 	Role            NullUserRole
 	WatchlistPeriod pgtype.Int4
 }
+
+type UserAd struct {
+	UserID pgtype.Text
+	AdID   pgtype.Int8
+}

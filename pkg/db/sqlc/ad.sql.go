@@ -100,6 +100,23 @@ func (q *Queries) CreateAd(ctx context.Context, arg CreateAdParams) (Ad, error) 
 	return i, err
 }
 
+const createUserAd = `-- name: CreateUserAd :exec
+INSERT INTO user_ads (user_id, ad_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type CreateUserAdParams struct {
+	UserID pgtype.Text
+	AdID   pgtype.Int8
+}
+
+// Assign an ad to a user as creator of that ad
+func (q *Queries) CreateUserAd(ctx context.Context, arg CreateUserAdParams) error {
+	_, err := q.db.Exec(ctx, createUserAd, arg.UserID, arg.AdID)
+	return err
+}
+
 const deleteAd = `-- name: DeleteAd :exec
 DELETE
 FROM ad

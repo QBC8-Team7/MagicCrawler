@@ -125,3 +125,9 @@ SELECT ad.*
 FROM ad
          LEFT JOIN price ON price.ad_id = ad.id
 WHERE price.id IS NULL;
+
+-- Assign an ad to a user as creator of that ad
+-- name: CreateUserAd :exec
+INSERT INTO user_ads (user_id, ad_id)
+VALUES (sqlc.arg('user_id'), sqlc.arg('ad_id'))
+ON CONFLICT DO NOTHING;  -- Avoid duplicate entries
