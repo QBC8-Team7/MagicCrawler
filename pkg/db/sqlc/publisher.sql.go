@@ -7,8 +7,6 @@ package sqlc
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createPublisher = `-- name: CreatePublisher :one
@@ -18,8 +16,8 @@ RETURNING id, name, url
 `
 
 type CreatePublisherParams struct {
-	Name string
-	Url  string
+	Name string `json:"name"`
+	Url  string `json:"url"`
 }
 
 // Insert a new publisher
@@ -37,7 +35,7 @@ WHERE id = $1
 `
 
 // Delete publisher by ID
-func (q *Queries) DeletePublisher(ctx context.Context, id pgtype.Int4) error {
+func (q *Queries) DeletePublisher(ctx context.Context, id *int32) error {
 	_, err := q.db.Exec(ctx, deletePublisher, id)
 	return err
 }
@@ -50,7 +48,7 @@ LIMIT 1
 `
 
 // Get publisher by its name
-func (q *Queries) GetPublisherByName(ctx context.Context, name pgtype.Text) (Publisher, error) {
+func (q *Queries) GetPublisherByName(ctx context.Context, name *string) (Publisher, error) {
 	row := q.db.QueryRow(ctx, getPublisherByName, name)
 	var i Publisher
 	err := row.Scan(&i.ID, &i.Name, &i.Url)
@@ -65,8 +63,8 @@ RETURNING id, name, url
 `
 
 type UpdatePublisherUrlParams struct {
-	Url pgtype.Text
-	ID  pgtype.Int4
+	Url *string `json:"url"`
+	ID  *int32  `json:"id"`
 }
 
 // Update publisher URL by ID

@@ -2,13 +2,13 @@
 -- name: CreateAd :one
 INSERT INTO ad (publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author,
                 url, title, description, city, neighborhood, house_type, meterage, rooms_count, year,
-                floor, total_floors, has_warehouse, has_elevator, lat, lng)
+                floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng)
 VALUES (sqlc.arg('publisher_ad_key'), sqlc.arg('publisher_id'), NOW(), NOW(), sqlc.narg('published_at'),
         sqlc.narg('category'), sqlc.narg('author'),
         sqlc.narg('url'), sqlc.narg('title'), sqlc.narg('description'), sqlc.narg('city'), sqlc.narg('neighborhood'),
         sqlc.narg('house_type'), sqlc.narg('meterage'), sqlc.narg('rooms_count'), sqlc.narg('year'),
         sqlc.narg('floor'), sqlc.narg('total_floors'), sqlc.narg('has_warehouse'), sqlc.narg('has_elevator'),
-        sqlc.narg('lat'), sqlc.narg('lng'))
+        sqlc.narg('has_parking'), sqlc.narg('lat'), sqlc.narg('lng'))
 RETURNING *;
 
 -- Update an existing ad's details with optional fields
@@ -33,16 +33,18 @@ SET publisher_ad_key = COALESCE(sqlc.narg('publisher_ad_key'), publisher_ad_key)
     total_floors     = COALESCE(sqlc.narg('total_floors'), total_floors),
     has_warehouse    = COALESCE(sqlc.narg('has_warehouse'), has_warehouse),
     has_elevator     = COALESCE(sqlc.narg('has_elevator'), has_elevator),
+    has_parking      = COALESCE(sqlc.narg('has_parking'), has_parking),
     lat              = COALESCE(sqlc.narg('lat'), lat),
     lng              = COALESCE(sqlc.narg('lng'), lng)
 WHERE publisher_ad_key = sqlc.narg('publisher_ad_key')
 RETURNING *;
 
+
 -- Delete an ad by publisher_ad_key
 -- name: DeleteAd :exec
 DELETE
 FROM ad
-WHERE publisher_ad_key = sqlc.narg('publisher_ad_key');
+WHERE id = sqlc.narg('id');
 
 -- Get all ads with dynamic ordering, limit, and offset
 -- name: GetAllAds :many
@@ -77,16 +79,11 @@ WHERE (publisher_id = coalesce(sqlc.narg('publisher_id'), publisher_id))
   AND (total_floors BETWEEN coalesce(sqlc.narg('min_total_floors'), total_floors) AND coalesce(sqlc.narg('max_total_floors'), total_floors))
   AND (has_warehouse = coalesce(sqlc.narg('has_warehouse'), has_warehouse))
   AND (has_elevator = coalesce(sqlc.narg('has_elevator'), has_elevator))
+  AND (has_parking = coalesce(sqlc.narg('has_parking'), has_parking))
   AND (lat BETWEEN coalesce(sqlc.narg('min_lat'), lat) AND coalesce(sqlc.narg('max_lat'), lat))
   AND (lng BETWEEN coalesce(sqlc.narg('min_lng'), lng) AND coalesce(sqlc.narg('max_lng'), lng))
 ORDER BY created_at DESC
 LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
-
--- Update ad updated_at timestamp by publisher_ad_key
--- name: UpdateAdUpdatedAt :exec
-UPDATE ad
-SET updated_at = NOW()
-WHERE publisher_ad_key = sqlc.narg('publisher_ad_key');
 
 -- Get ads by publisher ID
 -- name: GetAdsByPublisher :many
@@ -95,15 +92,28 @@ FROM ad
 WHERE publisher_id = sqlc.narg('publisher_id')
 ORDER BY created_at DESC;
 
--- Get ads with their latest price within the specified range.
--- This only includes ads where the latest price falls within the specified range.
--- For each ad, it selects the most recent price (based on fetched_at) in the range.
--- name: FilterAdsByPriceRange :many
+-- Get ads with their latest total price within the specified range.
+-- Handles cases with min_price and max_price individually or together.
+-- name: FilterAdsByTotalPriceRange :many
 SELECT ad.*
 FROM ad
          JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
                FROM price
-               WHERE (total_price BETWEEN sqlc.narg('min_price') AND sqlc.narg('max_price'))
+               WHERE total_price >= COALESCE(sqlc.narg('min_price'), total_price)
+                 AND total_price <= COALESCE(sqlc.narg('max_price'), total_price)
+               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
+ORDER BY ad.created_at DESC
+LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
+
+-- Get ads with their latest mortgage price within the specified range.
+-- Handles cases with min_price and max_price individually or together.
+-- name: FilterAdsByMortgagePriceRange :many
+SELECT ad.*
+FROM ad
+         JOIN (SELECT DISTINCT ON (ad_id) ad_id, mortgage
+               FROM price
+               WHERE mortgage >= COALESCE(sqlc.narg('min_price'), mortgage)
+                 AND mortgage <= COALESCE(sqlc.narg('max_price'), mortgage)
                ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
 ORDER BY ad.created_at DESC
 LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');

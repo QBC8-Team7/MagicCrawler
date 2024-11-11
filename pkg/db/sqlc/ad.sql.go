@@ -7,44 +7,44 @@ package sqlc
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
+	"time"
 )
 
 const createAd = `-- name: CreateAd :one
 INSERT INTO ad (publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author,
                 url, title, description, city, neighborhood, house_type, meterage, rooms_count, year,
-                floor, total_floors, has_warehouse, has_elevator, lat, lng)
+                floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng)
 VALUES ($1, $2, NOW(), NOW(), $3,
         $4, $5,
         $6, $7, $8, $9, $10,
         $11, $12, $13, $14,
         $15, $16, $17, $18,
-        $19, $20)
-RETURNING id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, lat, lng
+        $19, $20, $21)
+RETURNING id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
 `
 
 type CreateAdParams struct {
-	PublisherAdKey string
-	PublisherID    pgtype.Int4
-	PublishedAt    pgtype.Timestamp
-	Category       NullAdCategory
-	Author         pgtype.Text
-	Url            pgtype.Text
-	Title          pgtype.Text
-	Description    pgtype.Text
-	City           pgtype.Text
-	Neighborhood   pgtype.Text
-	HouseType      NullHouseType
-	Meterage       pgtype.Int4
-	RoomsCount     pgtype.Int4
-	Year           pgtype.Int4
-	Floor          pgtype.Int4
-	TotalFloors    pgtype.Int4
-	HasWarehouse   pgtype.Bool
-	HasElevator    pgtype.Bool
-	Lat            pgtype.Numeric
-	Lng            pgtype.Numeric
+	PublisherAdKey string    `json:"publisher_ad_key"`
+	PublisherID    *int32    `json:"publisher_id"`
+	PublishedAt    time.Time `json:"published_at"`
+	Category       string    `json:"category"`
+	Author         *string   `json:"author"`
+	Url            *string   `json:"url"`
+	Title          *string   `json:"title"`
+	Description    *string   `json:"description"`
+	City           *string   `json:"city"`
+	Neighborhood   *string   `json:"neighborhood"`
+	HouseType      string    `json:"house_type"`
+	Meterage       *int32    `json:"meterage"`
+	RoomsCount     *int32    `json:"rooms_count"`
+	Year           *int32    `json:"year"`
+	Floor          *int32    `json:"floor"`
+	TotalFloors    *int32    `json:"total_floors"`
+	HasWarehouse   *bool     `json:"has_warehouse"`
+	HasElevator    *bool     `json:"has_elevator"`
+	HasParking     *bool     `json:"has_parking"`
+	Lat            *float64  `json:"lat"`
+	Lng            *float64  `json:"lng"`
 }
 
 // Insert a new ad
@@ -68,6 +68,7 @@ func (q *Queries) CreateAd(ctx context.Context, arg CreateAdParams) (Ad, error) 
 		arg.TotalFloors,
 		arg.HasWarehouse,
 		arg.HasElevator,
+		arg.HasParking,
 		arg.Lat,
 		arg.Lng,
 	)
@@ -94,6 +95,7 @@ func (q *Queries) CreateAd(ctx context.Context, arg CreateAdParams) (Ad, error) 
 		&i.TotalFloors,
 		&i.HasWarehouse,
 		&i.HasElevator,
+		&i.HasParking,
 		&i.Lat,
 		&i.Lng,
 	)
@@ -103,17 +105,17 @@ func (q *Queries) CreateAd(ctx context.Context, arg CreateAdParams) (Ad, error) 
 const deleteAd = `-- name: DeleteAd :exec
 DELETE
 FROM ad
-WHERE publisher_ad_key = $1
+WHERE id = $1
 `
 
 // Delete an ad by publisher_ad_key
-func (q *Queries) DeleteAd(ctx context.Context, publisherAdKey pgtype.Text) error {
-	_, err := q.db.Exec(ctx, deleteAd, publisherAdKey)
+func (q *Queries) DeleteAd(ctx context.Context, id *int64) error {
+	_, err := q.db.Exec(ctx, deleteAd, id)
 	return err
 }
 
 const filterAds = `-- name: FilterAds :many
-SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, lat, lng
+SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
 FROM ad
 WHERE (publisher_id = coalesce($1, publisher_id))
   AND (updated_at BETWEEN coalesce($2, updated_at) AND coalesce($3, updated_at))
@@ -130,41 +132,43 @@ WHERE (publisher_id = coalesce($1, publisher_id))
   AND (total_floors BETWEEN coalesce($19, total_floors) AND coalesce($20, total_floors))
   AND (has_warehouse = coalesce($21, has_warehouse))
   AND (has_elevator = coalesce($22, has_elevator))
-  AND (lat BETWEEN coalesce($23, lat) AND coalesce($24, lat))
-  AND (lng BETWEEN coalesce($25, lng) AND coalesce($26, lng))
+  AND (has_parking = coalesce($23, has_parking))
+  AND (lat BETWEEN coalesce($24, lat) AND coalesce($25, lat))
+  AND (lng BETWEEN coalesce($26, lng) AND coalesce($27, lng))
 ORDER BY created_at DESC
-LIMIT $28 OFFSET $27
+LIMIT $29 OFFSET $28
 `
 
 type FilterAdsParams struct {
-	PublisherID    pgtype.Int4
-	MinUpdatedAt   pgtype.Timestamp
-	MaxUpdatedAt   pgtype.Timestamp
-	MinPublishedAt pgtype.Timestamp
-	MaxPublishedAt pgtype.Timestamp
-	Category       NullAdCategory
-	Author         pgtype.Text
-	City           pgtype.Text
-	Neighborhood   pgtype.Text
-	HouseType      NullHouseType
-	MinMeterage    pgtype.Int4
-	MaxMeterage    pgtype.Int4
-	MinRooms       pgtype.Int4
-	MaxRooms       pgtype.Int4
-	MinYear        pgtype.Int4
-	MaxYear        pgtype.Int4
-	MinFloor       pgtype.Int4
-	MaxFloor       pgtype.Int4
-	MinTotalFloors pgtype.Int4
-	MaxTotalFloors pgtype.Int4
-	HasWarehouse   pgtype.Bool
-	HasElevator    pgtype.Bool
-	MinLat         pgtype.Numeric
-	MaxLat         pgtype.Numeric
-	MinLng         pgtype.Numeric
-	MaxLng         pgtype.Numeric
-	Offset         pgtype.Int4
-	Limit          pgtype.Int4
+	PublisherID    *int32    `json:"publisher_id"`
+	MinUpdatedAt   time.Time `json:"min_updated_at"`
+	MaxUpdatedAt   time.Time `json:"max_updated_at"`
+	MinPublishedAt time.Time `json:"min_published_at"`
+	MaxPublishedAt time.Time `json:"max_published_at"`
+	Category       string    `json:"category"`
+	Author         *string   `json:"author"`
+	City           *string   `json:"city"`
+	Neighborhood   *string   `json:"neighborhood"`
+	HouseType      string    `json:"house_type"`
+	MinMeterage    *int32    `json:"min_meterage"`
+	MaxMeterage    *int32    `json:"max_meterage"`
+	MinRooms       *int32    `json:"min_rooms"`
+	MaxRooms       *int32    `json:"max_rooms"`
+	MinYear        *int32    `json:"min_year"`
+	MaxYear        *int32    `json:"max_year"`
+	MinFloor       *int32    `json:"min_floor"`
+	MaxFloor       *int32    `json:"max_floor"`
+	MinTotalFloors *int32    `json:"min_total_floors"`
+	MaxTotalFloors *int32    `json:"max_total_floors"`
+	HasWarehouse   *bool     `json:"has_warehouse"`
+	HasElevator    *bool     `json:"has_elevator"`
+	HasParking     *bool     `json:"has_parking"`
+	MinLat         *float64  `json:"min_lat"`
+	MaxLat         *float64  `json:"max_lat"`
+	MinLng         *float64  `json:"min_lng"`
+	MaxLng         *float64  `json:"max_lng"`
+	Offset         *int32    `json:"offset"`
+	Limit          *int32    `json:"limit"`
 }
 
 // Comprehensive ad search with all attribute filters, including ranges and additional fields
@@ -192,6 +196,7 @@ func (q *Queries) FilterAds(ctx context.Context, arg FilterAdsParams) ([]Ad, err
 		arg.MaxTotalFloors,
 		arg.HasWarehouse,
 		arg.HasElevator,
+		arg.HasParking,
 		arg.MinLat,
 		arg.MaxLat,
 		arg.MinLng,
@@ -228,6 +233,7 @@ func (q *Queries) FilterAds(ctx context.Context, arg FilterAdsParams) ([]Ad, err
 			&i.TotalFloors,
 			&i.HasWarehouse,
 			&i.HasElevator,
+			&i.HasParking,
 			&i.Lat,
 			&i.Lng,
 		); err != nil {
@@ -242,7 +248,7 @@ func (q *Queries) FilterAds(ctx context.Context, arg FilterAdsParams) ([]Ad, err
 }
 
 const filterAdsByIdsAndPriceRange = `-- name: FilterAdsByIdsAndPriceRange :many
-SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.lat, ad.lng
+SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
 FROM ad
          JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
                FROM price
@@ -253,9 +259,9 @@ ORDER BY ad.created_at DESC
 `
 
 type FilterAdsByIdsAndPriceRangeParams struct {
-	AdIds    []int32
-	MinPrice pgtype.Int8
-	MaxPrice pgtype.Int8
+	AdIds    []int32 `json:"ad_ids"`
+	MinPrice *int64  `json:"min_price"`
+	MaxPrice *int64  `json:"max_price"`
 }
 
 // Filter ads based on list of IDs and price range
@@ -290,6 +296,7 @@ func (q *Queries) FilterAdsByIdsAndPriceRange(ctx context.Context, arg FilterAds
 			&i.TotalFloors,
 			&i.HasWarehouse,
 			&i.HasElevator,
+			&i.HasParking,
 			&i.Lat,
 			&i.Lng,
 		); err != nil {
@@ -303,29 +310,29 @@ func (q *Queries) FilterAdsByIdsAndPriceRange(ctx context.Context, arg FilterAds
 	return items, nil
 }
 
-const filterAdsByPriceRange = `-- name: FilterAdsByPriceRange :many
-SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.lat, ad.lng
+const filterAdsByMortgagePriceRange = `-- name: FilterAdsByMortgagePriceRange :many
+SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
 FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
+         JOIN (SELECT DISTINCT ON (ad_id) ad_id, mortgage
                FROM price
-               WHERE (total_price BETWEEN $1 AND $2)
+               WHERE mortgage >= COALESCE($1, mortgage)
+                 AND mortgage <= COALESCE($2, mortgage)
                ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
 ORDER BY ad.created_at DESC
 LIMIT $4 OFFSET $3
 `
 
-type FilterAdsByPriceRangeParams struct {
-	MinPrice pgtype.Int8
-	MaxPrice pgtype.Int8
-	Offset   pgtype.Int4
-	Limit    pgtype.Int4
+type FilterAdsByMortgagePriceRangeParams struct {
+	MinPrice *int64 `json:"min_price"`
+	MaxPrice *int64 `json:"max_price"`
+	Offset   *int32 `json:"offset"`
+	Limit    *int32 `json:"limit"`
 }
 
-// Get ads with their latest price within the specified range.
-// This only includes ads where the latest price falls within the specified range.
-// For each ad, it selects the most recent price (based on fetched_at) in the range.
-func (q *Queries) FilterAdsByPriceRange(ctx context.Context, arg FilterAdsByPriceRangeParams) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, filterAdsByPriceRange,
+// Get ads with their latest mortgage price within the specified range.
+// Handles cases with min_price and max_price individually or together.
+func (q *Queries) FilterAdsByMortgagePriceRange(ctx context.Context, arg FilterAdsByMortgagePriceRangeParams) ([]Ad, error) {
+	rows, err := q.db.Query(ctx, filterAdsByMortgagePriceRange,
 		arg.MinPrice,
 		arg.MaxPrice,
 		arg.Offset,
@@ -360,6 +367,78 @@ func (q *Queries) FilterAdsByPriceRange(ctx context.Context, arg FilterAdsByPric
 			&i.TotalFloors,
 			&i.HasWarehouse,
 			&i.HasElevator,
+			&i.HasParking,
+			&i.Lat,
+			&i.Lng,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const filterAdsByTotalPriceRange = `-- name: FilterAdsByTotalPriceRange :many
+SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
+FROM ad
+         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
+               FROM price
+               WHERE total_price >= COALESCE($1, total_price)
+                 AND total_price <= COALESCE($2, total_price)
+               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
+ORDER BY ad.created_at DESC
+LIMIT $4 OFFSET $3
+`
+
+type FilterAdsByTotalPriceRangeParams struct {
+	MinPrice *int64 `json:"min_price"`
+	MaxPrice *int64 `json:"max_price"`
+	Offset   *int32 `json:"offset"`
+	Limit    *int32 `json:"limit"`
+}
+
+// Get ads with their latest total price within the specified range.
+// Handles cases with min_price and max_price individually or together.
+func (q *Queries) FilterAdsByTotalPriceRange(ctx context.Context, arg FilterAdsByTotalPriceRangeParams) ([]Ad, error) {
+	rows, err := q.db.Query(ctx, filterAdsByTotalPriceRange,
+		arg.MinPrice,
+		arg.MaxPrice,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Ad
+	for rows.Next() {
+		var i Ad
+		if err := rows.Scan(
+			&i.ID,
+			&i.PublisherAdKey,
+			&i.PublisherID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PublishedAt,
+			&i.Category,
+			&i.Author,
+			&i.Url,
+			&i.Title,
+			&i.Description,
+			&i.City,
+			&i.Neighborhood,
+			&i.HouseType,
+			&i.Meterage,
+			&i.RoomsCount,
+			&i.Year,
+			&i.Floor,
+			&i.TotalFloors,
+			&i.HasWarehouse,
+			&i.HasElevator,
+			&i.HasParking,
 			&i.Lat,
 			&i.Lng,
 		); err != nil {
@@ -374,14 +453,14 @@ func (q *Queries) FilterAdsByPriceRange(ctx context.Context, arg FilterAdsByPric
 }
 
 const getAdsByPublisher = `-- name: GetAdsByPublisher :many
-SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, lat, lng
+SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
 FROM ad
 WHERE publisher_id = $1
 ORDER BY created_at DESC
 `
 
 // Get ads by publisher ID
-func (q *Queries) GetAdsByPublisher(ctx context.Context, publisherID pgtype.Int4) ([]Ad, error) {
+func (q *Queries) GetAdsByPublisher(ctx context.Context, publisherID *int32) ([]Ad, error) {
 	rows, err := q.db.Query(ctx, getAdsByPublisher, publisherID)
 	if err != nil {
 		return nil, err
@@ -412,6 +491,7 @@ func (q *Queries) GetAdsByPublisher(ctx context.Context, publisherID pgtype.Int4
 			&i.TotalFloors,
 			&i.HasWarehouse,
 			&i.HasElevator,
+			&i.HasParking,
 			&i.Lat,
 			&i.Lng,
 		); err != nil {
@@ -440,7 +520,7 @@ func (q *Queries) GetAdsPublisherByAdKey(ctx context.Context, adKey pgtype.Int8)
 }
 
 const getAdsWithoutPrice = `-- name: GetAdsWithoutPrice :many
-SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.lat, ad.lng
+SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
 FROM ad
          LEFT JOIN price ON price.ad_id = ad.id
 WHERE price.id IS NULL
@@ -478,6 +558,7 @@ func (q *Queries) GetAdsWithoutPrice(ctx context.Context) ([]Ad, error) {
 			&i.TotalFloors,
 			&i.HasWarehouse,
 			&i.HasElevator,
+			&i.HasParking,
 			&i.Lat,
 			&i.Lng,
 		); err != nil {
@@ -492,7 +573,7 @@ func (q *Queries) GetAdsWithoutPrice(ctx context.Context) ([]Ad, error) {
 }
 
 const getAllAds = `-- name: GetAllAds :many
-SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, lat, lng
+SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
 FROM ad
 ORDER BY CASE
              WHEN $1 = 'published_at' THEN published_at
@@ -506,9 +587,9 @@ LIMIT $3 OFFSET $2
 `
 
 type GetAllAdsParams struct {
-	OrderBy interface{}
-	Offset  pgtype.Int4
-	Limit   pgtype.Int4
+	OrderBy interface{} `json:"order_by"`
+	Offset  *int32      `json:"offset"`
+	Limit   *int32      `json:"limit"`
 }
 
 // Get all ads with dynamic ordering, limit, and offset
@@ -543,6 +624,7 @@ func (q *Queries) GetAllAds(ctx context.Context, arg GetAllAdsParams) ([]Ad, err
 			&i.TotalFloors,
 			&i.HasWarehouse,
 			&i.HasElevator,
+			&i.HasParking,
 			&i.Lat,
 			&i.Lng,
 		); err != nil {
@@ -577,33 +659,35 @@ SET publisher_ad_key = COALESCE($1, publisher_ad_key),
     total_floors     = COALESCE($16, total_floors),
     has_warehouse    = COALESCE($17, has_warehouse),
     has_elevator     = COALESCE($18, has_elevator),
-    lat              = COALESCE($19, lat),
-    lng              = COALESCE($20, lng)
+    has_parking      = COALESCE($19, has_parking),
+    lat              = COALESCE($20, lat),
+    lng              = COALESCE($21, lng)
 WHERE publisher_ad_key = $1
-RETURNING id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, lat, lng
+RETURNING id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
 `
 
 type UpdateAdParams struct {
-	PublisherAdKey pgtype.Text
-	PublisherID    pgtype.Int4
-	PublishedAt    pgtype.Timestamp
-	Category       NullAdCategory
-	Author         pgtype.Text
-	Url            pgtype.Text
-	Title          pgtype.Text
-	Description    pgtype.Text
-	City           pgtype.Text
-	Neighborhood   pgtype.Text
-	HouseType      NullHouseType
-	Meterage       pgtype.Int4
-	RoomsCount     pgtype.Int4
-	Year           pgtype.Int4
-	Floor          pgtype.Int4
-	TotalFloors    pgtype.Int4
-	HasWarehouse   pgtype.Bool
-	HasElevator    pgtype.Bool
-	Lat            pgtype.Numeric
-	Lng            pgtype.Numeric
+	PublisherAdKey *string   `json:"publisher_ad_key"`
+	PublisherID    *int32    `json:"publisher_id"`
+	PublishedAt    time.Time `json:"published_at"`
+	Category       string    `json:"category"`
+	Author         *string   `json:"author"`
+	Url            *string   `json:"url"`
+	Title          *string   `json:"title"`
+	Description    *string   `json:"description"`
+	City           *string   `json:"city"`
+	Neighborhood   *string   `json:"neighborhood"`
+	HouseType      string    `json:"house_type"`
+	Meterage       *int32    `json:"meterage"`
+	RoomsCount     *int32    `json:"rooms_count"`
+	Year           *int32    `json:"year"`
+	Floor          *int32    `json:"floor"`
+	TotalFloors    *int32    `json:"total_floors"`
+	HasWarehouse   *bool     `json:"has_warehouse"`
+	HasElevator    *bool     `json:"has_elevator"`
+	HasParking     *bool     `json:"has_parking"`
+	Lat            *float64  `json:"lat"`
+	Lng            *float64  `json:"lng"`
 }
 
 // Update an existing ad's details with optional fields
@@ -627,6 +711,7 @@ func (q *Queries) UpdateAd(ctx context.Context, arg UpdateAdParams) (Ad, error) 
 		arg.TotalFloors,
 		arg.HasWarehouse,
 		arg.HasElevator,
+		arg.HasParking,
 		arg.Lat,
 		arg.Lng,
 	)
@@ -653,20 +738,9 @@ func (q *Queries) UpdateAd(ctx context.Context, arg UpdateAdParams) (Ad, error) 
 		&i.TotalFloors,
 		&i.HasWarehouse,
 		&i.HasElevator,
+		&i.HasParking,
 		&i.Lat,
 		&i.Lng,
 	)
 	return i, err
-}
-
-const updateAdUpdatedAt = `-- name: UpdateAdUpdatedAt :exec
-UPDATE ad
-SET updated_at = NOW()
-WHERE publisher_ad_key = $1
-`
-
-// Update ad updated_at timestamp by publisher_ad_key
-func (q *Queries) UpdateAdUpdatedAt(ctx context.Context, publisherAdKey pgtype.Text) error {
-	_, err := q.db.Exec(ctx, updateAdUpdatedAt, publisherAdKey)
-	return err
 }

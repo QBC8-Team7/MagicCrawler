@@ -25,6 +25,7 @@ go.work.sum
 .env
 
 config/config.yml
+config.yml
 
 .idea
 vendor
