@@ -2,97 +2,70 @@ package server
 
 import (
 	"context"
-	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
+	"github.com/labstack/echo/v4"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-type BotServer struct {
-	Bot     *tgbotapi.BotAPI
-	Handler *Handlers
-	Logger  *logger.AppLogger
+type Server struct {
+	logger *logger.AppLogger
+	cfg    *config.Config
+	db     *sqlc.Queries
+	echo   *echo.Echo
 }
 
-type UserContext struct {
-	Command   string
-	CurrentAd *Ad
-	Progress  int
-}
+const (
+	maxHeaderBytes = 1 << 20
+	ctxTimeout     = 5
+)
 
-var userContext = make(map[int64]*UserContext)
-
-func NewServer(ctx context.Context, cfg *config.Config, db *sqlc.Queries) *BotServer {
+func NewServer(ctx context.Context, cfg *config.Config, db *sqlc.Queries) *Server {
 	appLogger := logger.NewAppLogger(cfg)
 
 	appLogger.InitLogger(cfg.Logger.Path)
 	appLogger.Infof("AppVersion: %s, LogLevel: %s, Mode: %s, SSL: %s", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode, "")
 
-	bot, err := tgbotapi.NewBotAPI(cfg.Bot.Token)
-	if err != nil {
-		log.Fatalf("Failed to create bot: %v", err)
+	return &Server{
+		echo:   echo.New(),
+		logger: appLogger,
+		cfg:    cfg,
+		db:     db,
+	}
+}
+
+func (s *Server) Run() error {
+	server := &http.Server{
+		Addr:           s.cfg.Server.Port,
+		MaxHeaderBytes: maxHeaderBytes,
 	}
 
-	handler := &Handlers{
-		Logger: appLogger,
-		DB:     db,
-		DbCtx:  ctx,
-	}
-	log.Printf("Authorized on account %s\n\n", bot.Self.UserName)
-
-	bot.Debug = cfg.Server.Mode == "development"
-
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-
-	updates, err := bot.GetUpdatesChan(u)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	for update := range updates {
-		if update.Message != nil {
-			chatID := update.Message.Chat.ID
-			text := update.Message.Text
-
-			switch text {
-			case "/start":
-				sendWellcome(bot, chatID, update.Message.From)
-			default:
-				handleUserMessage(ctx, bot, update, chatID, *db)
-			}
+	go func() {
+		s.logger.Infof("Server is listening on PORT: %s", s.cfg.Server.Port)
+		if err := s.echo.StartServer(server); err != nil {
+			s.logger.Fatalf("Error starting Server: ", err)
 		}
-		if update.CallbackQuery != nil {
-			action := update.CallbackQuery.Data
-			chatID := update.CallbackQuery.Message.Chat.ID
+	}()
 
-			switch action {
-			case "ad_create":
-				userContext[chatID] = &UserContext{
-					Command:   "addhouse",
-					CurrentAd: &Ad{},
-					Progress:  0,
-				}
-				sendCategoryButtons(bot, chatID)
-			case "ad_update":
-				userContext[chatID] = &UserContext{
-					Command:   "updatehouse",
-					CurrentAd: &Ad{},
-					Progress:  0,
-				}
-				sendCategoryButtons(bot, chatID)
-			}
-
-			handleCallbackQuery(bot, update)
-		}
+	if err := s.MapHandlers(s.echo); err != nil {
+		return err
 	}
 
-	return &BotServer{
-		Bot:     bot,
-		Handler: handler,
-		Logger:  appLogger,
-	}
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	<-quit
+
+	ctx, shutdown := context.WithTimeout(context.Background(), ctxTimeout*time.Second)
+	defer shutdown()
+
+	s.logger.Info("Server Exited Properly")
+	return s.echo.Server.Shutdown(ctx)
 }

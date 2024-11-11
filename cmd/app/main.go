@@ -2,12 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 	"github.com/jackc/pgx/v5"
@@ -42,23 +37,6 @@ func main() {
 
 	s := server.NewServer(ctx, cfg, dbQueries)
 
-	go func() {
-		fmt.Println("Bot Server Started...")
-	}()
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-
-	<-stop
-	log.Println("Shutting down bot...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	s.Bot.StopReceivingUpdates()
-
-	<-ctx.Done()
-
-	s.Logger.Info("Bot exited gracefully.")
+	s.Run()
 
 }
