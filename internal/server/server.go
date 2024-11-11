@@ -43,7 +43,7 @@ func NewServer(ctx context.Context, cfg *config.Config, db *sqlc.Queries) *BotSe
 	}
 	log.Printf("Authorized on account %s\n\n", bot.Self.UserName)
 
-	bot.Debug = cfg.Server.Mode == "development"
+	bot.Debug = cfg.Server.Mode == config.Development
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
