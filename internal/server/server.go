@@ -58,7 +58,7 @@ func (s *Server) Run() error {
 	//}()
 
 	s.router.Use(echoMiddlewares.CORSWithConfig(echoMiddlewares.CORSConfig{
-		AllowOrigins: []string{"http://localhost", "https://qbc8.boloorin.top.com"},
+		AllowOrigins: []string{s.cfg.Server.Host, "https://qbc8.boloorin.top.com", "https://6926-178-63-176-230.ngrok-free.app/"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
 	}))
 
