@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
@@ -13,30 +14,35 @@ import (
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
+	conf, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal("could not read config file: ", err)
+		log.Fatalln(fmt.Errorf("load config error: %w", err))
 	}
 
-	ctx := context.Background()
+	dbContext := context.Background()
 
-	dbUri := db.GetDbUri(cfg)
-	dbConn, err := db.GetDBConnection(ctx, dbUri)
+	dbUri := db.GetDbUri(conf)
+	dbConn, err := db.GetDBConnection(dbContext, dbUri)
 	if err != nil {
-		log.Fatal("could not connect to db: ", err)
+		log.Fatalln(fmt.Errorf("could not connect to dataabse: %w", err))
 	}
 
 	defer func(conn *pgx.Conn, ctx context.Context) {
 		err := conn.Close(ctx)
 		if err != nil {
-			log.Fatal("could not close connection:", err)
+			log.Fatalln(fmt.Errorf("could not close connection with database: %w", err))
 		}
-	}(dbConn, ctx)
+	}(dbConn, dbContext)
 
 	dbQueries := sqlc.New(dbConn)
 
-	s := server.NewServer(ctx, cfg, dbQueries)
+	s, err := server.NewServer(dbContext, conf, dbQueries)
+	if err != nil {
+		log.Fatal(fmt.Errorf("could not start server: %w", err))
+	}
 
-	s.Run()
-
+	err = s.Run()
+	if err != nil {
+		log.Fatalln(fmt.Errorf("error while running server: %w", err))
+	}
 }
