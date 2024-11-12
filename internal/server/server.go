@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+
 	"github.com/QBC8-Team7/MagicCrawler/internal/middleware"
 	"github.com/labstack/echo/v4"
 	echoMiddlewares "github.com/labstack/echo/v4/middleware"
-	"log"
-	"net/http"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
@@ -59,7 +60,7 @@ func (s *Server) Run() error {
 	//}()
 
 	s.router.Use(echoMiddlewares.CORSWithConfig(echoMiddlewares.CORSConfig{
-		AllowOrigins: []string{s.cfg.Server.Host, "https://qbc8.boloorin.top.com", "https://6926-178-63-176-230.ngrok-free.app/"},
+		AllowOrigins: []string{s.cfg.Server.Host, "https://qbc8.boloorin.top.com", "http://localhost", "https://6926-178-63-176-230.ngrok-free.app/"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
 	}))
 
