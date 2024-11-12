@@ -11,25 +11,47 @@ import (
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/structs"
 )
 
+const BaseUrl = "https://divar.ir"
+
 type Crawler struct{}
 
 func (c Crawler) CrawlArchivePage(link string) []string {
-	// TODO - Implement crawl archive page
+	page := 1
 
-	fmt.Println("ArchivePage")
-	return []string{
-		"https://divar.ir/v/%D8%A8%D8%B1%D8%AC-%D9%85%D9%8F%D8%AC%D9%8E%D9%84%D9%84-%D9%88%D9%8B-%D9%87%D9%8F%D8%AA%D9%90%D9%84%DB%8C%D9%86%DA%AF-110%D9%85%D8%AA%D8%B12%D8%AE-2%D8%AA%D8%B1%D8%A7%D8%B3-2%D9%BE%D8%A7%D8%B1%DA%A9%DB%8C%D9%86%DA%AF/wZhYfCej",
-		// "https://divar.ir/v/%DB%B9%DB%B0-%D9%85%D8%AA%D8%B1-%D8%AF%D9%88-%D8%AE%D9%88%D8%A7%D8%A8%D9%87-%D9%81%D9%88%D9%84-%D8%A7%D9%85%DA%A9%D8%A7%D9%86%D8%A7%D8%AA-%D8%B4%D9%87%D8%B1%DA%A9-%D9%85%D8%A8%D8%B9%D8%AB-%D8%AC%D9%86%D8%AA-%D8%B4%D9%85%D8%A7%D9%84/wZnkiwjN",
-		// "https://divar.ir/v/%D9%81%D8%B1%D9%88%D8%B4-%D9%88%DB%8C%D9%84%D8%A7-%D8%A8%D8%A7%D8%BA-%D8%AF%D9%85%D8%A7%D9%88%D9%86%D8%AF-%DB%B3%DB%B5%DB%B0-%D9%85%D8%AA%D8%B1/wZpwsRu2",
-		// "https://divar.ir/v/%D9%81%D8%B1%D9%88%D8%B4%DB%B2%DB%B6%DB%B0%D9%85%D8%AA%D8%B1-%D9%88%DB%8C%D9%84%D8%A7%DB%8C%DB%8C-%D8%AF%D9%88%D8%B7%D8%A8%D9%82%D9%87-%D9%85%D8%AC%D8%B2%D8%A7-%D8%AF%D8%B1-%D9%81%D8%A7%D8%B2%DB%B3-%D8%A7%D9%86%D8%AF%DB%8C%D8%B4%D9%87/wZpo8rRP",
-		// "https://divar.ir/v/%D9%81%D8%B1%D9%88%D8%B4-%D8%A2%D9%BE%D8%A7%D8%B1%D8%AA%D9%85%D8%A7%D9%86/wZlERUNi",
-		// "https://divar.ir/v/%D8%A2%D9%BE%D8%A7%D8%B1%D8%AA%D9%85%D8%A7%D9%86-80-%D9%85%D8%AA%D8%B1%DB%8C-%DB%8C%D8%A7%D8%AE%DA%86%DB%8C-%D8%A2%D8%A8%D8%A7%D8%AF-%D9%86%D8%A7%D8%B2%DB%8C-%D8%A7%D8%A8%D8%A7%D8%AF/wZqcVWMQ",
-		// "https://divar.ir/v/%D8%AE%D8%A7%D9%86%D9%87-%D9%88%DB%8C%D9%84%D8%A7%DB%8C%DB%8C-%D8%B3%D9%86%D8%AF-%D8%AF%D8%A7%D8%B1/wZmMb4lq",
-		// "https://divar.ir/v/%D8%A2%D9%BE%D8%A7%D8%B1%D8%AA%D9%85%D8%A7%D9%86-%DB%B1%DB%B2%DB%B0%D9%85%D8%AA%D8%B1%DB%8C-%D8%B5%D8%A7%D9%84%D8%AD%DB%8C%D9%87/wZJcUdyR",
-		// "https://divar.ir/v/%D8%A2%D9%BE%D8%A7%D8%B1%D8%AA%D9%85%D8%A7%D9%86-%D8%B3%D9%87-%D8%AE%D9%88%D8%A7%D8%A8%D9%87-%D8%B4%D9%85%D8%A7%D9%84-%D8%AC%D8%B1%D8%AF%D9%86/wZpc0SVj",
-		// "https://divar.ir/v/150%D9%85%D8%AA%D8%B1-%D8%A8%D8%B1%D8%AC-%D8%A8%D8%A7%D8%BA-%D9%86%D9%88%D8%B3%D8%A7%D8%B2-%D9%88%DB%8C%D9%88-%D8%A7%D8%A8%D8%AF%DB%8C-%D8%B3%D8%B9%D8%A7%D8%AF%D8%AA-%D8%A2%D8%A8%D8%A7%D8%AF/wZmM0v34",
+	link = fmt.Sprintf("%s?page=%d", link, page)
+	htmlContent, err := helpers.GetHtml(link)
+	if err != nil {
+		fmt.Println(err)
+		return nil
 	}
 
+	links, err := getSinglePageLinksInArchivePage(htmlContent)
+	if err != nil {
+		return nil
+	}
+
+	return links
+}
+
+func getSinglePageLinksInArchivePage(htmlContent string) ([]string, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		return []string{}, fmt.Errorf("error parsing html: %s", err)
+	}
+
+	links := []string{}
+
+	doc.Find(".kt-post-card__action").Each(func(index int, item *goquery.Selection) {
+		link, ok := item.Attr("href")
+		if ok {
+			link = strings.ReplaceAll(link, " ", "")
+			if link != "" {
+				links = append(links, BaseUrl+link)
+			}
+		}
+	})
+
+	return links, nil
 }
 
 func (c Crawler) CrawlItemPage(link string) (structs.CrawledData, error) {
@@ -41,17 +63,17 @@ func (c Crawler) CrawlItemPage(link string) (structs.CrawledData, error) {
 	crawledData := structs.CrawledData{}
 
 	// fill general data
-	err = c.CatchGeneralData(htmlContent, &crawledData)
+	err = c.catchGeneralData(htmlContent, &crawledData)
 	if err != nil {
 		return structs.CrawledData{}, err
 	}
 
-	err = c.CatchPublishedAt(htmlContent, &crawledData)
+	err = c.catchPublishedAt(htmlContent, &crawledData)
 	if err != nil {
 		return structs.CrawledData{}, err
 	}
 
-	err = c.CatchPricesAndSomeOtherData(htmlContent, &crawledData)
+	err = c.catchPricesAndSomeOtherData(htmlContent, &crawledData)
 	if err != nil {
 		return structs.CrawledData{}, err
 	}
@@ -59,7 +81,7 @@ func (c Crawler) CrawlItemPage(link string) (structs.CrawledData, error) {
 	return crawledData, nil
 }
 
-func (c Crawler) CatchGeneralData(htmlContent string, crawledData *structs.CrawledData) error {
+func (c Crawler) catchGeneralData(htmlContent string, crawledData *structs.CrawledData) error {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return fmt.Errorf("error parsing html: %s", err)
@@ -129,7 +151,7 @@ func getHouseType(category string) string {
 	return ""
 }
 
-func (c Crawler) CatchPublishedAt(htmlContent string, crawledData *structs.CrawledData) error {
+func (c Crawler) catchPublishedAt(htmlContent string, crawledData *structs.CrawledData) error {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return fmt.Errorf("error parsing html: %s", err)
@@ -150,7 +172,7 @@ func (c Crawler) CatchPublishedAt(htmlContent string, crawledData *structs.Crawl
 	return nil
 }
 
-func (c Crawler) CatchPricesAndSomeOtherData(htmlContent string, crawledData *structs.CrawledData) error {
+func (c Crawler) catchPricesAndSomeOtherData(htmlContent string, crawledData *structs.CrawledData) error {
 	startPattern := `"LIST_DATA"\s*:\s*`
 	endPattern := `\s*}\s*]\s*}\s*`
 

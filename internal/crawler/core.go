@@ -63,6 +63,7 @@ func getCrawler(source string) Crawler {
 func CrawlArchivePage(crawler Crawler, link string, wg *sync.WaitGroup) {
 	singlePageLinks := crawler.CrawlArchivePage(link)
 	for _, itemLink := range singlePageLinks {
+		fmt.Println(itemLink)
 		wg.Add(1)
 		go func(link string) {
 			defer wg.Done()
