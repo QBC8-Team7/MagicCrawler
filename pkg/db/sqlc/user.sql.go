@@ -111,6 +111,34 @@ func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]Use
 	return items, nil
 }
 
+const getUserAds = `-- name: GetUserAds :many
+
+SELECT ad_id
+FROM user_ads
+WHERE user_id = $1
+`
+
+// Avoid duplicate entries
+func (q *Queries) GetUserAds(ctx context.Context, userID *string) ([]*int64, error) {
+	rows, err := q.db.Query(ctx, getUserAds, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*int64
+	for rows.Next() {
+		var ad_id *int64
+		if err := rows.Scan(&ad_id); err != nil {
+			return nil, err
+		}
+		items = append(items, ad_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserByTGID = `-- name: GetUserByTGID :one
 SELECT tg_id, role, watchlist_period
 FROM "user"

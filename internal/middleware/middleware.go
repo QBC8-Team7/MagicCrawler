@@ -39,6 +39,14 @@ func EchoRequestLogger(logger *logger.AppLogger) echo.MiddlewareFunc {
 func EchoAuthentication(ctx context.Context, db *sqlc.Queries) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			ignoredPaths := map[string]bool{
+				"/healthz": true,
+			}
+
+			if _, ok := ignoredPaths[c.Path()]; ok {
+				return next(c)
+			}
+
 			userTgID := c.Request().Header.Get("Authorization")
 			if userTgID == "" {
 				return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header required")
@@ -59,7 +67,8 @@ func EchoAuthentication(ctx context.Context, db *sqlc.Queries) echo.MiddlewareFu
 				}
 			}
 
-			c.Set("UserRole", user.Role.UserRole)
+			c.Set("UserRole", string(user.Role.UserRole))
+			c.Set("UserID", user.TgID)
 
 			return next(c)
 		}
