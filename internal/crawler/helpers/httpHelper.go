@@ -9,7 +9,7 @@ import (
 
 func GetHtml(url string) (string, error) {
 	client := &http.Client{
-		Timeout: 10 * time.Second, // Timeout after 10 seconds
+		Timeout: 20 * time.Second, // Timeout after 10 seconds
 	}
 
 	// Create a new request

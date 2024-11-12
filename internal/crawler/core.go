@@ -11,7 +11,7 @@ import (
 )
 
 type Crawler interface {
-	CrawlArchivePage(link string) []string
+	CrawlArchivePage(link string, wg *sync.WaitGroup)
 	CrawlItemPage(link string) (structs.CrawledData, error)
 }
 
@@ -31,7 +31,7 @@ func Start(seeds []map[string]string, timeout time.Duration) {
 		go func(link, source string) {
 			defer wg.Done()
 			crawler := getCrawler(source)
-			CrawlArchivePage(crawler, link, &wg)
+			crawler.CrawlArchivePage(link, &wg)
 		}(seed["link"], seed["source"])
 	}
 
@@ -48,7 +48,6 @@ func Start(seeds []map[string]string, timeout time.Duration) {
 	}
 }
 
-// Factory function to get the correct crawler based on source
 func getCrawler(source string) Crawler {
 	switch source {
 	case SOURCE_DIVAR:
@@ -57,27 +56,5 @@ func getCrawler(source string) Crawler {
 		return sheypoor.Crawler{}
 	default:
 		panic("Unknown source, using default crawler")
-	}
-}
-
-func CrawlArchivePage(crawler Crawler, link string, wg *sync.WaitGroup) {
-	singlePageLinks := crawler.CrawlArchivePage(link)
-	for _, itemLink := range singlePageLinks {
-		fmt.Println(itemLink)
-		wg.Add(1)
-		go func(link string) {
-			defer wg.Done()
-			crawledData, err := crawler.CrawlItemPage(link)
-			if err != nil {
-				// TODO - Notify admin about error
-				fmt.Println(err)
-				return
-			}
-
-			// Log crawled data
-			// TODO - insert crawled data to database
-			fmt.Printf("%+v\n", crawledData)
-		}(itemLink)
-		time.Sleep(time.Second * 1)
 	}
 }

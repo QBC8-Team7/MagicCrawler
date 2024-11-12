@@ -2,6 +2,7 @@ package sheypoor
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/structs"
@@ -9,9 +10,8 @@ import (
 
 type Crawler struct{}
 
-func (s Crawler) CrawlArchivePage(link string) []string {
+func (s Crawler) CrawlArchivePage(link string, wg *sync.WaitGroup) {
 	fmt.Println("Crawling Sheypoor archive page:", link)
-	return []string{"item_link1", "item_link2"}
 }
 
 func (s Crawler) CrawlItemPage(link string) (structs.CrawledData, error) {

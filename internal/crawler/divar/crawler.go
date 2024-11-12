@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/helpers"
@@ -15,41 +17,67 @@ const BaseUrl = "https://divar.ir"
 
 type Crawler struct{}
 
-func (c Crawler) CrawlArchivePage(link string) []string {
+func (c Crawler) CrawlArchivePage(link string, wg *sync.WaitGroup) {
 	page := 1
 
-	link = fmt.Sprintf("%s?page=%d", link, page)
-	htmlContent, err := helpers.GetHtml(link)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 
-	links, err := getSinglePageLinksInArchivePage(htmlContent)
-	if err != nil {
-		return nil
-	}
+		link = fmt.Sprintf("%s?page=%d", link, page)
 
-	return links
+		fmt.Println("Archive:", link)
+		htmlContent, err := helpers.GetHtml(link)
+		if err != nil {
+			fmt.Println(err)
+			// TODO - log here
+		}
+
+		links, err := getSinglePageLinksFromArchivePage(htmlContent)
+		if err != nil {
+			// TODO - log here
+		}
+
+		for _, singlePageLink := range links {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				// TODO - insert links in DB queue table
+
+				fmt.Println("SINGLE:", singlePageLink)
+			}()
+			time.Sleep(time.Second)
+		}
+
+	}()
+
 }
 
-func getSinglePageLinksInArchivePage(htmlContent string) ([]string, error) {
+func getSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return []string{}, fmt.Errorf("error parsing html: %s", err)
 	}
 
-	links := []string{}
-
-	doc.Find(".kt-post-card__action").Each(func(index int, item *goquery.Selection) {
-		link, ok := item.Attr("href")
-		if ok {
-			link = strings.ReplaceAll(link, " ", "")
-			if link != "" {
-				links = append(links, BaseUrl+link)
-			}
-		}
+	var scriptContent string
+	doc.Find("[type='application/ld+json']").Each(func(index int, item *goquery.Selection) {
+		scriptContent = item.Text()
 	})
+
+	if len(scriptContent) == 0 {
+		return []string{}, fmt.Errorf("no json-ld script found")
+	}
+
+	var items []ArchivePageItem
+	err = json.Unmarshal([]byte(scriptContent), &items)
+	if err != nil {
+		return []string{}, fmt.Errorf("error unmarshalling json: %s", err)
+	}
+
+	links := make([]string, len(items))
+	for index, item := range items {
+		links[index] = item.URL
+	}
 
 	return links, nil
 }
