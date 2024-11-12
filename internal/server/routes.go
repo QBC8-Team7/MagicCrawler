@@ -3,7 +3,21 @@ package server
 import "github.com/labstack/echo/v4"
 
 func registerRoutes(e *echo.Echo, s *Server) {
-	e.GET("/healthz", healthCheckHandler)
+	s.router.GET("/healthz", healthCheckHandler)
 
-	e.POST("/ad", s.createAdHandler)
+	adGroup := e.Group("/ad")
+	priceGroup := e.Group("/price")
+
+	adGroup.DELETE("/:adID", s.deleteAdByID)
+	adGroup.POST("", s.createAd)
+	adGroup.GET("/:adID", s.getAdById)
+	//adGroup.GET("", s.getAllAdsHandler)
+
+	priceGroup.POST("", s.setPriceOnAd)
+	priceGroup.GET("/:adID", s.getAdsLatestPrice)
+	//priceGroup.GET("/:adID/all", s.getAdsAllPricesHandler)
+
+	//userGroup := e.Group("/user")
+	//userGroup.GET("/ads", s.getUsersAdsHandler)
+	//userGroup.GET("/favorites", s.getUsersFavoriteAdsHandler)
 }

@@ -46,3 +46,8 @@ ON CONFLICT DO NOTHING;
 INSERT INTO favorite_ads (user_id, ad_id)
 VALUES (sqlc.arg('user_id'), sqlc.arg('ad_id'))
 ON CONFLICT DO NOTHING; -- Avoid duplicate entries
+
+-- name: GetUserAds :many
+SELECT ad_id
+FROM user_ads
+WHERE user_id = sqlc.arg('user_id');

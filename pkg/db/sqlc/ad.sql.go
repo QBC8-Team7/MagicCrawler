@@ -247,209 +247,43 @@ func (q *Queries) FilterAds(ctx context.Context, arg FilterAdsParams) ([]Ad, err
 	return items, nil
 }
 
-const filterAdsByIdsAndPriceRange = `-- name: FilterAdsByIdsAndPriceRange :many
+const getAdByID = `-- name: GetAdByID :one
 SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
 FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
-               FROM price
-               WHERE ad_id = ANY ($1::int[])
-                 AND total_price BETWEEN $2 AND $3
-               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
-ORDER BY ad.created_at DESC
+WHERE ad.id = $1
 `
 
-type FilterAdsByIdsAndPriceRangeParams struct {
-	AdIds    []int32 `json:"ad_ids"`
-	MinPrice *int64  `json:"min_price"`
-	MaxPrice *int64  `json:"max_price"`
-}
-
-// Filter ads based on list of IDs and price range
-func (q *Queries) FilterAdsByIdsAndPriceRange(ctx context.Context, arg FilterAdsByIdsAndPriceRangeParams) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, filterAdsByIdsAndPriceRange, arg.AdIds, arg.MinPrice, arg.MaxPrice)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Ad
-	for rows.Next() {
-		var i Ad
-		if err := rows.Scan(
-			&i.ID,
-			&i.PublisherAdKey,
-			&i.PublisherID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.PublishedAt,
-			&i.Category,
-			&i.Author,
-			&i.Url,
-			&i.Title,
-			&i.Description,
-			&i.City,
-			&i.Neighborhood,
-			&i.HouseType,
-			&i.Meterage,
-			&i.RoomsCount,
-			&i.Year,
-			&i.Floor,
-			&i.TotalFloors,
-			&i.HasWarehouse,
-			&i.HasElevator,
-			&i.HasParking,
-			&i.Lat,
-			&i.Lng,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const filterAdsByMortgagePriceRange = `-- name: FilterAdsByMortgagePriceRange :many
-SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
-FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, mortgage
-               FROM price
-               WHERE mortgage >= COALESCE($1, mortgage)
-                 AND mortgage <= COALESCE($2, mortgage)
-               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
-ORDER BY ad.created_at DESC
-LIMIT $4 OFFSET $3
-`
-
-type FilterAdsByMortgagePriceRangeParams struct {
-	MinPrice *int64 `json:"min_price"`
-	MaxPrice *int64 `json:"max_price"`
-	Offset   *int32 `json:"offset"`
-	Limit    *int32 `json:"limit"`
-}
-
-// Get ads with their latest mortgage price within the specified range.
-// Handles cases with min_price and max_price individually or together.
-func (q *Queries) FilterAdsByMortgagePriceRange(ctx context.Context, arg FilterAdsByMortgagePriceRangeParams) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, filterAdsByMortgagePriceRange,
-		arg.MinPrice,
-		arg.MaxPrice,
-		arg.Offset,
-		arg.Limit,
+// Get Ad by its ID
+func (q *Queries) GetAdByID(ctx context.Context, id int64) (Ad, error) {
+	row := q.db.QueryRow(ctx, getAdByID, id)
+	var i Ad
+	err := row.Scan(
+		&i.ID,
+		&i.PublisherAdKey,
+		&i.PublisherID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PublishedAt,
+		&i.Category,
+		&i.Author,
+		&i.Url,
+		&i.Title,
+		&i.Description,
+		&i.City,
+		&i.Neighborhood,
+		&i.HouseType,
+		&i.Meterage,
+		&i.RoomsCount,
+		&i.Year,
+		&i.Floor,
+		&i.TotalFloors,
+		&i.HasWarehouse,
+		&i.HasElevator,
+		&i.HasParking,
+		&i.Lat,
+		&i.Lng,
 	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Ad
-	for rows.Next() {
-		var i Ad
-		if err := rows.Scan(
-			&i.ID,
-			&i.PublisherAdKey,
-			&i.PublisherID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.PublishedAt,
-			&i.Category,
-			&i.Author,
-			&i.Url,
-			&i.Title,
-			&i.Description,
-			&i.City,
-			&i.Neighborhood,
-			&i.HouseType,
-			&i.Meterage,
-			&i.RoomsCount,
-			&i.Year,
-			&i.Floor,
-			&i.TotalFloors,
-			&i.HasWarehouse,
-			&i.HasElevator,
-			&i.HasParking,
-			&i.Lat,
-			&i.Lng,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const filterAdsByTotalPriceRange = `-- name: FilterAdsByTotalPriceRange :many
-SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
-FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
-               FROM price
-               WHERE total_price >= COALESCE($1, total_price)
-                 AND total_price <= COALESCE($2, total_price)
-               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
-ORDER BY ad.created_at DESC
-LIMIT $4 OFFSET $3
-`
-
-type FilterAdsByTotalPriceRangeParams struct {
-	MinPrice *int64 `json:"min_price"`
-	MaxPrice *int64 `json:"max_price"`
-	Offset   *int32 `json:"offset"`
-	Limit    *int32 `json:"limit"`
-}
-
-// Get ads with their latest total price within the specified range.
-// Handles cases with min_price and max_price individually or together.
-func (q *Queries) FilterAdsByTotalPriceRange(ctx context.Context, arg FilterAdsByTotalPriceRangeParams) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, filterAdsByTotalPriceRange,
-		arg.MinPrice,
-		arg.MaxPrice,
-		arg.Offset,
-		arg.Limit,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Ad
-	for rows.Next() {
-		var i Ad
-		if err := rows.Scan(
-			&i.ID,
-			&i.PublisherAdKey,
-			&i.PublisherID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.PublishedAt,
-			&i.Category,
-			&i.Author,
-			&i.Url,
-			&i.Title,
-			&i.Description,
-			&i.City,
-			&i.Neighborhood,
-			&i.HouseType,
-			&i.Meterage,
-			&i.RoomsCount,
-			&i.Year,
-			&i.Floor,
-			&i.TotalFloors,
-			&i.HasWarehouse,
-			&i.HasElevator,
-			&i.HasParking,
-			&i.Lat,
-			&i.Lng,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+	return i, err
 }
 
 const getAdsByPublisher = `-- name: GetAdsByPublisher :many
@@ -517,59 +351,6 @@ func (q *Queries) GetAdsPublisherByAdKey(ctx context.Context, adKey *int64) (str
 	var publisher_ad_key string
 	err := row.Scan(&publisher_ad_key)
 	return publisher_ad_key, err
-}
-
-const getAdsWithoutPrice = `-- name: GetAdsWithoutPrice :many
-SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
-FROM ad
-         LEFT JOIN price ON price.ad_id = ad.id
-WHERE price.id IS NULL
-`
-
-// Get ads without associated price
-func (q *Queries) GetAdsWithoutPrice(ctx context.Context) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, getAdsWithoutPrice)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Ad
-	for rows.Next() {
-		var i Ad
-		if err := rows.Scan(
-			&i.ID,
-			&i.PublisherAdKey,
-			&i.PublisherID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.PublishedAt,
-			&i.Category,
-			&i.Author,
-			&i.Url,
-			&i.Title,
-			&i.Description,
-			&i.City,
-			&i.Neighborhood,
-			&i.HouseType,
-			&i.Meterage,
-			&i.RoomsCount,
-			&i.Year,
-			&i.Floor,
-			&i.TotalFloors,
-			&i.HasWarehouse,
-			&i.HasElevator,
-			&i.HasParking,
-			&i.Lat,
-			&i.Lng,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getAllAds = `-- name: GetAllAds :many
