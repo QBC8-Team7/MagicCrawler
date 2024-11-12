@@ -63,7 +63,7 @@ func (s *Server) Run() error {
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
-	})
+	}))
 
 	s.router.Use(middleware.EchoRequestLogger(s.logger))
 	s.router.Use(middleware.EchoAuthentication(s.dbContext, s.db))
