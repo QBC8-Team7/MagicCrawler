@@ -60,9 +60,10 @@ func (s *Server) Run() error {
 	//}()
 
 	s.router.Use(echoMiddlewares.CORSWithConfig(echoMiddlewares.CORSConfig{
-		AllowOrigins: []string{s.cfg.Server.Host, "https://qbc8.boloorin.top.com", "https://tg-miniapp-xi.vercel.app", "https://6926-178-63-176-230.ngrok-free.app/"},
+		AllowOrigins: []string{"*"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
-	}))
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+	})
 
 	s.router.Use(middleware.EchoRequestLogger(s.logger))
 	s.router.Use(middleware.EchoAuthentication(s.dbContext, s.db))
