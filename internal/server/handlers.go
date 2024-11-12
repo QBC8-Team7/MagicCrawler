@@ -246,3 +246,78 @@ func (s *Server) getAdsLatestPrice(c echo.Context) error {
 		Message: latestPrice,
 	})
 }
+
+func (s *Server) getAllAds(c echo.Context) error {
+	limitStr := c.QueryParam("limit")
+	offsetStr := c.QueryParam("offset")
+	if limitStr == "" {
+		limitStr = "10"
+	}
+	if offsetStr == "" {
+		offsetStr = "0"
+	}
+
+	limitInt, err := strconv.Atoi(limitStr)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid limit",
+		})
+	}
+	offsetInt, err := strconv.ParseInt(offsetStr, 10, 32)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid offset",
+		})
+	}
+	limit := int32(limitInt)
+	offset := int32(offsetInt)
+
+	getAllAdsParam := sqlc.GetAllAdsParams{
+		Limit:  &limit,
+		Offset: &offset,
+	}
+	ads, err := s.db.GetAllAds(s.dbContext, getAllAdsParam)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting all ads: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: ads,
+	})
+}
+
+func (s *Server) getUsersAds(c echo.Context) error {
+	userID := c.Get("UserID").(string)
+
+	idPointers, err := s.db.GetUserAds(s.dbContext, &userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting user ads: %v", err),
+		})
+	}
+
+	var ids []int64
+	for _, id := range idPointers {
+		ids = append(ids, *id)
+	}
+
+	ads, err := s.db.GetAdsByIds(s.dbContext, ids)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting user ads: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: ads,
+	})
+}

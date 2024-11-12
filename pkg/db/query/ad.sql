@@ -50,15 +50,15 @@ WHERE id = sqlc.narg('id');
 -- name: GetAllAds :many
 SELECT *
 FROM ad
-ORDER BY CASE
-             WHEN sqlc.narg('order_by') = 'published_at' THEN published_at
-             WHEN sqlc.narg('order_by') = 'updated_at' THEN updated_at
-             WHEN sqlc.narg('order_by') = 'created_at' THEN created_at
-             WHEN sqlc.narg('order_by') = 'year' THEN year
-             ELSE id -- Default to ordering by id if no valid order_by is provided
-             END
-        DESC
+ORDER BY id DESC
 LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
+
+-- Get ads based on list of IDs
+-- name: GetAdsByIds :many
+SELECT *
+FROM ad
+WHERE id = ANY(sqlc.narg('ad_ids')::bigint[])
+ORDER BY created_at DESC;
 
 -- Comprehensive ad search with all attribute filters, including ranges and additional fields
 -- name: FilterAds :many

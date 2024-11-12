@@ -11,13 +11,13 @@ func registerRoutes(e *echo.Echo, s *Server) {
 	adGroup.DELETE("/:adID", s.deleteAdByID)
 	adGroup.POST("", s.createAd)
 	adGroup.GET("/:adID", s.getAdById)
-	//adGroup.GET("", s.getAllAdsHandler)
+	adGroup.GET("", s.getAllAds)
 
 	priceGroup.POST("", s.setPriceOnAd)
 	priceGroup.GET("/:adID", s.getAdsLatestPrice)
 	//priceGroup.GET("/:adID/all", s.getAdsAllPricesHandler)
 
-	//userGroup := e.Group("/user")
-	//userGroup.GET("/ads", s.getUsersAdsHandler)
-	//userGroup.GET("/favorites", s.getUsersFavoriteAdsHandler)
+	userGroup := e.Group("/user")
+	userGroup.GET("/ad", s.getUsersAds)
+	//userGroup.GET("/favorite", s.getUsersFavoriteAdsHandler)
 }

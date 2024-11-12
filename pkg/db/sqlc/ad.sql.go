@@ -286,6 +286,59 @@ func (q *Queries) GetAdByID(ctx context.Context, id int64) (Ad, error) {
 	return i, err
 }
 
+const getAdsByIds = `-- name: GetAdsByIds :many
+SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
+FROM ad
+WHERE id = ANY($1::bigint[])
+ORDER BY created_at DESC
+`
+
+// Get ads based on list of IDs
+func (q *Queries) GetAdsByIds(ctx context.Context, adIds []int64) ([]Ad, error) {
+	rows, err := q.db.Query(ctx, getAdsByIds, adIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Ad
+	for rows.Next() {
+		var i Ad
+		if err := rows.Scan(
+			&i.ID,
+			&i.PublisherAdKey,
+			&i.PublisherID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PublishedAt,
+			&i.Category,
+			&i.Author,
+			&i.Url,
+			&i.Title,
+			&i.Description,
+			&i.City,
+			&i.Neighborhood,
+			&i.HouseType,
+			&i.Meterage,
+			&i.RoomsCount,
+			&i.Year,
+			&i.Floor,
+			&i.TotalFloors,
+			&i.HasWarehouse,
+			&i.HasElevator,
+			&i.HasParking,
+			&i.Lat,
+			&i.Lng,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAdsByPublisher = `-- name: GetAdsByPublisher :many
 SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
 FROM ad
@@ -356,26 +409,18 @@ func (q *Queries) GetAdsPublisherByAdKey(ctx context.Context, adKey *int64) (str
 const getAllAds = `-- name: GetAllAds :many
 SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
 FROM ad
-ORDER BY CASE
-             WHEN $1 = 'published_at' THEN published_at
-             WHEN $1 = 'updated_at' THEN updated_at
-             WHEN $1 = 'created_at' THEN created_at
-             WHEN $1 = 'year' THEN year
-             ELSE id -- Default to ordering by id if no valid order_by is provided
-             END
-        DESC
-LIMIT $3 OFFSET $2
+ORDER BY id DESC
+LIMIT $2 OFFSET $1
 `
 
 type GetAllAdsParams struct {
-	OrderBy interface{} `json:"order_by"`
-	Offset  *int32      `json:"offset"`
-	Limit   *int32      `json:"limit"`
+	Offset *int32 `json:"offset"`
+	Limit  *int32 `json:"limit"`
 }
 
 // Get all ads with dynamic ordering, limit, and offset
 func (q *Queries) GetAllAds(ctx context.Context, arg GetAllAdsParams) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, getAllAds, arg.OrderBy, arg.Offset, arg.Limit)
+	rows, err := q.db.Query(ctx, getAllAds, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
