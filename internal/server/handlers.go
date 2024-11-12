@@ -237,7 +237,7 @@ func (s *Server) getAdsLatestPrice(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, jsonResponse{
 			Success: false,
-			Message: "ad not found",
+			Message: "no prices found or ad does not exist",
 		})
 	}
 
@@ -319,5 +319,35 @@ func (s *Server) getUsersAds(c echo.Context) error {
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
 		Message: ads,
+	})
+}
+
+func (s *Server) getAdsAllPrices(c echo.Context) error {
+	adID, err := strconv.ParseInt(c.Param("adID"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid ad ID",
+		})
+	}
+
+	prices, err := s.db.GetAllPricesByAdID(s.dbContext, adID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting all prices: %v", err),
+		})
+	}
+
+	if len(prices) == 0 {
+		return c.JSON(http.StatusOK, jsonResponse{
+			Success: false,
+			Message: []sqlc.Price{},
+		})
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: prices,
 	})
 }

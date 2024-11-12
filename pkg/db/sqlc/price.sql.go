@@ -58,7 +58,70 @@ func (q *Queries) CreatePrice(ctx context.Context, arg CreatePriceParams) (Price
 	return i, err
 }
 
-const filterAdsByIdsAndPriceRange = `-- name: FilterAdsByIdsAndPriceRange :many
+const filterAdsByIdsAndMortgagePriceRange = `-- name: FilterAdsByIdsAndMortgagePriceRange :many
+SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
+FROM ad
+         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
+               FROM price
+               WHERE ad_id = ANY ($1::int[])
+                 AND mortgage BETWEEN $2 AND $3
+               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
+ORDER BY ad.created_at DESC
+`
+
+type FilterAdsByIdsAndMortgagePriceRangeParams struct {
+	AdIds    []int32 `json:"ad_ids"`
+	MinPrice *int64  `json:"min_price"`
+	MaxPrice *int64  `json:"max_price"`
+}
+
+// Filter ads based on list of IDs and price range
+func (q *Queries) FilterAdsByIdsAndMortgagePriceRange(ctx context.Context, arg FilterAdsByIdsAndMortgagePriceRangeParams) ([]Ad, error) {
+	rows, err := q.db.Query(ctx, filterAdsByIdsAndMortgagePriceRange, arg.AdIds, arg.MinPrice, arg.MaxPrice)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Ad
+	for rows.Next() {
+		var i Ad
+		if err := rows.Scan(
+			&i.ID,
+			&i.PublisherAdKey,
+			&i.PublisherID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PublishedAt,
+			&i.Category,
+			&i.Author,
+			&i.Url,
+			&i.Title,
+			&i.Description,
+			&i.City,
+			&i.Neighborhood,
+			&i.HouseType,
+			&i.Meterage,
+			&i.RoomsCount,
+			&i.Year,
+			&i.Floor,
+			&i.TotalFloors,
+			&i.HasWarehouse,
+			&i.HasElevator,
+			&i.HasParking,
+			&i.Lat,
+			&i.Lng,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const filterAdsByIdsAndTotalPriceRange = `-- name: FilterAdsByIdsAndTotalPriceRange :many
 SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
 FROM ad
          JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
@@ -69,15 +132,15 @@ FROM ad
 ORDER BY ad.created_at DESC
 `
 
-type FilterAdsByIdsAndPriceRangeParams struct {
+type FilterAdsByIdsAndTotalPriceRangeParams struct {
 	AdIds    []int32 `json:"ad_ids"`
 	MinPrice *int64  `json:"min_price"`
 	MaxPrice *int64  `json:"max_price"`
 }
 
 // Filter ads based on list of IDs and price range
-func (q *Queries) FilterAdsByIdsAndPriceRange(ctx context.Context, arg FilterAdsByIdsAndPriceRangeParams) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, filterAdsByIdsAndPriceRange, arg.AdIds, arg.MinPrice, arg.MaxPrice)
+func (q *Queries) FilterAdsByIdsAndTotalPriceRange(ctx context.Context, arg FilterAdsByIdsAndTotalPriceRangeParams) ([]Ad, error) {
+	rows, err := q.db.Query(ctx, filterAdsByIdsAndTotalPriceRange, arg.AdIds, arg.MinPrice, arg.MaxPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -316,6 +379,44 @@ func (q *Queries) GetAdsWithoutPrice(ctx context.Context) ([]Ad, error) {
 	return items, nil
 }
 
+const getAllPricesByAdID = `-- name: GetAllPricesByAdID :many
+SELECT price.id, price.ad_id, price.fetched_at, price.has_price, price.total_price, price.price_per_meter, price.mortgage, price.normal_price, price.weekend_price
+FROM price
+WHERE ad_id = $1
+ORDER BY fetched_at
+`
+
+// Get all prices for a specific ad by its id
+func (q *Queries) GetAllPricesByAdID(ctx context.Context, id int64) ([]Price, error) {
+	rows, err := q.db.Query(ctx, getAllPricesByAdID, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Price
+	for rows.Next() {
+		var i Price
+		if err := rows.Scan(
+			&i.ID,
+			&i.AdID,
+			&i.FetchedAt,
+			&i.HasPrice,
+			&i.TotalPrice,
+			&i.PricePerMeter,
+			&i.Mortgage,
+			&i.NormalPrice,
+			&i.WeekendPrice,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLatestPriceByAdID = `-- name: GetLatestPriceByAdID :one
 SELECT price.id, price.ad_id, price.fetched_at, price.has_price, price.total_price, price.price_per_meter, price.mortgage, price.normal_price, price.weekend_price
 FROM price
@@ -324,7 +425,7 @@ ORDER BY fetched_at DESC
 LIMIT 1
 `
 
-// Get the latest price for a specific ad by id
+// Get the latest price for a specific ad by its id
 func (q *Queries) GetLatestPriceByAdID(ctx context.Context, id int64) (Price, error) {
 	row := q.db.QueryRow(ctx, getLatestPriceByAdID, id)
 	var i Price

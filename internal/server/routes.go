@@ -7,17 +7,17 @@ func registerRoutes(e *echo.Echo, s *Server) {
 
 	adGroup := e.Group("/ad")
 	priceGroup := e.Group("/price")
+	userGroup := e.Group("/user")
 
 	adGroup.DELETE("/:adID", s.deleteAdByID)
-	adGroup.POST("", s.createAd)
 	adGroup.GET("/:adID", s.getAdById)
 	adGroup.GET("", s.getAllAds)
+	adGroup.POST("", s.createAd)
 
-	priceGroup.POST("", s.setPriceOnAd)
+	priceGroup.GET("/:adID/all", s.getAdsAllPrices)
 	priceGroup.GET("/:adID", s.getAdsLatestPrice)
-	//priceGroup.GET("/:adID/all", s.getAdsAllPricesHandler)
+	priceGroup.POST("", s.setPriceOnAd)
 
-	userGroup := e.Group("/user")
 	userGroup.GET("/ad", s.getUsersAds)
 	//userGroup.GET("/favorite", s.getUsersFavoriteAdsHandler)
 }
