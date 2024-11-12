@@ -61,8 +61,8 @@ func (s *Server) Run() error {
 
 	s.router.Use(echoMiddlewares.CORSWithConfig(echoMiddlewares.CORSConfig{
 		AllowOrigins: []string{"*"},
-		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+		AllowMethods: []string{"*"},
+		AllowHeaders: []string{"*"},
 	}))
 
 	s.router.Use(middleware.EchoRequestLogger(s.logger))
