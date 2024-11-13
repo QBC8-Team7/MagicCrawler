@@ -3,7 +3,7 @@ package server
 import "github.com/labstack/echo/v4"
 
 func registerRoutes(e *echo.Echo, s *Server) {
-	s.router.GET("/healthz", healthCheckHandler)
+	s.router.GET("/healthz", healthCheck)
 
 	adGroup := e.Group("/ad")
 	priceGroup := e.Group("/price")

@@ -15,6 +15,11 @@ type jsonResponse struct {
 }
 
 func (s *Server) checkUserAccessToAd(userRole, userID string, adID int64) (bool, error) {
+	// Check if they have an admin role
+	if userRole == string(sqlc.UserRoleAdmin) || userRole == string(sqlc.UserRoleSuperAdmin) {
+		return true, nil
+	}
+
 	userAds, err := s.db.GetUserAds(s.dbContext, &userID)
 	if err != nil {
 		return false, fmt.Errorf("error checking user ads: %w", err)
@@ -27,16 +32,11 @@ func (s *Server) checkUserAccessToAd(userRole, userID string, adID int64) (bool,
 		}
 	}
 
-	// Check if they have an admin role
-	if userRole == string(sqlc.UserRoleAdmin) || userRole == string(sqlc.UserRoleSuperAdmin) {
-		return true, nil
-	}
-
 	// User neither owns the ad nor has privileges
 	return false, nil
 }
 
-func healthCheckHandler(c echo.Context) error {
+func healthCheck(c echo.Context) error {
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
 		Message: "ok",
@@ -286,6 +286,13 @@ func (s *Server) getAllAds(c echo.Context) error {
 		})
 	}
 
+	if len(ads) == 0 {
+		return c.JSON(http.StatusNoContent, jsonResponse{
+			Success: true,
+			Message: []sqlc.Ad{},
+		})
+	}
+
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
 		Message: ads,
@@ -316,6 +323,13 @@ func (s *Server) getUsersAds(c echo.Context) error {
 		})
 	}
 
+	if len(ads) == 0 {
+		return c.JSON(http.StatusNoContent, jsonResponse{
+			Success: true,
+			Message: []sqlc.Ad{},
+		})
+	}
+
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
 		Message: ads,
@@ -340,8 +354,8 @@ func (s *Server) getAdsAllPrices(c echo.Context) error {
 	}
 
 	if len(prices) == 0 {
-		return c.JSON(http.StatusOK, jsonResponse{
-			Success: false,
+		return c.JSON(http.StatusNoContent, jsonResponse{
+			Success: true,
 			Message: []sqlc.Price{},
 		})
 	}

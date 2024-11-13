@@ -3,8 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
-
 	"github.com/QBC8-Team7/MagicCrawler/internal/middleware"
 	"github.com/labstack/echo/v4"
 	echoMiddlewares "github.com/labstack/echo/v4/middleware"
@@ -51,15 +49,14 @@ func (s *Server) Run() error {
 		AllowMethods: []string{"*"},
 		AllowHeaders: []string{"*"},
 	}))
+	s.router.Use(middleware.WithRequestLogger(s.logger))
+	s.router.Use(middleware.WithAuthentication(s.dbContext, s.db))
 
-	s.router.Use(middleware.EchoRequestLogger(s.logger))
-	s.router.Use(middleware.EchoAuthentication(s.dbContext, s.db))
 	addr := fmt.Sprintf("%s:%s", s.cfg.Server.Host, s.cfg.Server.Port)
-	log.Println(addr)
 
-	if s.cfg.Server.Mode == "development" {
+	if s.cfg.Server.Mode == config.Development {
 		return s.router.Start(addr)
 	}
-	return s.router.StartTLS(":443", certFile, keyFile)
+	return s.router.StartTLS(addr, certFile, keyFile)
 
 }
