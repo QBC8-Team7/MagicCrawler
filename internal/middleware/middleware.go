@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
-	"gopkg.in/telebot.v4"
 )
 
-func EchoRequestLogger(logger *logger.AppLogger) echo.MiddlewareFunc {
+func WithRequestLogger(logger *logger.AppLogger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			req := c.Request()
@@ -36,7 +35,7 @@ func EchoRequestLogger(logger *logger.AppLogger) echo.MiddlewareFunc {
 	}
 }
 
-func EchoAuthentication(ctx context.Context, db *sqlc.Queries) echo.MiddlewareFunc {
+func WithAuthentication(ctx context.Context, db *sqlc.Queries) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			ignoredPaths := map[string]bool{
@@ -70,22 +69,6 @@ func EchoAuthentication(ctx context.Context, db *sqlc.Queries) echo.MiddlewareFu
 			c.Set("UserRole", string(user.Role.UserRole))
 			c.Set("UserID", user.TgID)
 
-			return next(c)
-		}
-	}
-}
-
-func WithLogging(logger *logger.AppLogger) telebot.MiddlewareFunc {
-	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
-		return func(c telebot.Context) error {
-			msg := c.Message()
-			if msg != nil {
-				logger.Infof("Received message from %s (%d): %s at %s",
-					msg.Sender.Username,
-					msg.Sender.ID,
-					msg.Text,
-					time.Now().Format(time.RFC3339))
-			}
 			return next(c)
 		}
 	}
