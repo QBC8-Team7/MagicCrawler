@@ -286,6 +286,13 @@ func (s *Server) getAllAds(c echo.Context) error {
 		})
 	}
 
+	if len(ads) == 0 {
+		return c.JSON(http.StatusNoContent, jsonResponse{
+			Success: true,
+			Message: []sqlc.Ad{},
+		})
+	}
+
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
 		Message: ads,
@@ -316,6 +323,13 @@ func (s *Server) getUsersAds(c echo.Context) error {
 		})
 	}
 
+	if len(ads) == 0 {
+		return c.JSON(http.StatusNoContent, jsonResponse{
+			Success: true,
+			Message: []sqlc.Ad{},
+		})
+	}
+
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
 		Message: ads,
@@ -340,8 +354,8 @@ func (s *Server) getAdsAllPrices(c echo.Context) error {
 	}
 
 	if len(prices) == 0 {
-		return c.JSON(http.StatusOK, jsonResponse{
-			Success: false,
+		return c.JSON(http.StatusNoContent, jsonResponse{
+			Success: true,
 			Message: []sqlc.Price{},
 		})
 	}
