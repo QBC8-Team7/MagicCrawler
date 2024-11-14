@@ -1,0 +1,1 @@
+delete from publisher where name = 'mini-app'

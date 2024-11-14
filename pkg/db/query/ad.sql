@@ -65,13 +65,12 @@ ORDER BY created_at DESC;
 SELECT *
 FROM ad
 WHERE (publisher_id = coalesce(sqlc.narg('publisher_id'), publisher_id))
-  AND (updated_at BETWEEN coalesce(sqlc.narg('min_updated_at'), updated_at) AND coalesce(sqlc.narg('max_updated_at'), updated_at))
   AND (published_at BETWEEN coalesce(sqlc.narg('min_published_at'), published_at) AND coalesce(sqlc.narg('max_published_at'), published_at))
-  AND (category = coalesce(sqlc.narg('category'), category))
-  AND (author = coalesce(sqlc.narg('author'), author))
+  AND (category::TEXT = coalesce(sqlc.narg('category')::TEXT, category::TEXT))
+  AND (author like coalesce(sqlc.narg('author'), author))
   AND (city = coalesce(sqlc.narg('city'), city))
   AND (neighborhood = coalesce(sqlc.narg('neighborhood'), neighborhood))
-  AND (house_type = coalesce(sqlc.narg('house_type'), house_type))
+  AND (house_type::TEXT = coalesce(sqlc.narg('house_type')::TEXT, house_type::TEXT))
   AND (meterage BETWEEN coalesce(sqlc.narg('min_meterage'), meterage) AND coalesce(sqlc.narg('max_meterage'), meterage))
   AND (rooms_count BETWEEN coalesce(sqlc.narg('min_rooms'), rooms_count) AND coalesce(sqlc.narg('max_rooms'), rooms_count))
   AND (year BETWEEN coalesce(sqlc.narg('min_year'), year) AND coalesce(sqlc.narg('max_year'), year))
@@ -80,8 +79,17 @@ WHERE (publisher_id = coalesce(sqlc.narg('publisher_id'), publisher_id))
   AND (has_warehouse = coalesce(sqlc.narg('has_warehouse'), has_warehouse))
   AND (has_elevator = coalesce(sqlc.narg('has_elevator'), has_elevator))
   AND (has_parking = coalesce(sqlc.narg('has_parking'), has_parking))
-  AND (lat BETWEEN coalesce(sqlc.narg('min_lat'), lat) AND coalesce(sqlc.narg('max_lat'), lat))
-  AND (lng BETWEEN coalesce(sqlc.narg('min_lng'), lng) AND coalesce(sqlc.narg('max_lng'), lng))
+  AND ((sqlc.narg('lat')::float IS NOT NULL AND
+        sqlc.narg('lng')::float IS NOT NULL AND
+        sqlc.narg('radius')::int IS NOT NULL AND
+        6371 * ACOS(
+                COS(RADIANS(sqlc.narg('lat'))) *
+                COS(RADIANS(lat)) *
+                COS(RADIANS(lng) - RADIANS(sqlc.narg('lng'))) +
+                SIN(RADIANS(sqlc.narg('lat'))) *
+                SIN(RADIANS(lat))
+               ) <= sqlc.narg('radius'))
+    OR (sqlc.narg('lat') IS NULL OR sqlc.narg('lng') IS NULL OR sqlc.narg('radius') IS NULL))
 ORDER BY created_at DESC
 LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
 
@@ -104,3 +112,6 @@ WHERE ad.id = sqlc.narg('ad_key');
 SELECT ad.*
 FROM ad
 WHERE ad.id = sqlc.arg('id');
+
+-- name: CountAds :one
+SELECT COUNT(*) FROM ad;

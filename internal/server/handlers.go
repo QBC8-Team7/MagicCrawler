@@ -53,9 +53,11 @@ func (s *Server) createAd(c echo.Context) error {
 		})
 	}
 
+	miniApID := int32(3)
 	adParam.PublisherAdKey = "mini-app"
-	adParam.PublisherID = nil
-	adParam.PublishedAt = time.Now()
+	adParam.PublisherID = &miniApID
+	now := time.Now()
+	adParam.PublishedAt = &now
 	adParam.Url = nil
 
 	ad, err := s.db.CreateAd(s.dbContext, *adParam)
@@ -217,6 +219,121 @@ func (s *Server) getAllAds(c echo.Context) error {
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
 		Message: ads,
+	})
+}
+
+func (s *Server) searchAds(c echo.Context) error {
+	filterParam := new(sqlc.FilterAdsParams)
+
+	if err := c.Bind(&filterParam); err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("invalid params: %v", err),
+		})
+	}
+
+	if filterParam.Author != nil {
+		authorQuery := "%" + (*filterParam.Author) + "%"
+		filterParam.Author = &authorQuery
+	}
+
+	if filterParam.Limit == nil {
+		limit := int32(10)
+		filterParam.Limit = &limit
+	}
+	if filterParam.Offset == nil {
+		offset := int32(0)
+		filterParam.Offset = &offset
+	}
+
+	ads, err := s.db.FilterAds(s.dbContext, *filterParam)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("invalid params: %v", err),
+		})
+	}
+
+	if len(ads) == 0 {
+		ads = []sqlc.Ad{}
+	}
+
+	var minPrice, maxPrice *int64
+	if minPriceStr := c.QueryParam("minPrice"); minPriceStr != "" {
+		price, err := strconv.ParseInt(minPriceStr, 10, 64)
+		if err == nil {
+			minPrice = &price
+		}
+	}
+	if maxPriceStr := c.QueryParam("maxPrice"); maxPriceStr != "" {
+		price, err := strconv.ParseInt(maxPriceStr, 10, 64)
+		if err == nil {
+			maxPrice = &price
+		}
+	}
+
+	if minPrice == nil && maxPrice == nil {
+		return c.JSON(http.StatusOK, jsonResponse{
+			Success: true,
+			Message: ads,
+		})
+	}
+
+	var category string
+	if filterParam.Category != nil {
+		category = *filterParam.Category
+	}
+
+	if category == "" {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "category must be specified when applying price filters",
+		})
+	}
+
+	adIDs := make([]int64, len(ads))
+	for i, ad := range ads {
+		adIDs[i] = ad.ID
+	}
+
+	var filteredAds []sqlc.Ad
+
+	switch category {
+	case string(sqlc.AdCategoryBuy):
+		filteredAds, err = s.db.FilterAdsPriceBuy(s.dbContext, sqlc.FilterAdsPriceBuyParams{
+			AdIds:    adIDs,
+			MinPrice: minPrice,
+			MaxPrice: maxPrice,
+		})
+	case string(sqlc.AdCategoryRent):
+		filteredAds, err = s.db.FilterAdsPriceRent(s.dbContext, sqlc.FilterAdsPriceRentParams{
+			AdIds:    adIDs,
+			MinPrice: minPrice,
+			MaxPrice: maxPrice,
+		})
+	case string(sqlc.AdCategoryMortgage):
+		filteredAds, err = s.db.FilterAdsPriceMortgage(s.dbContext, sqlc.FilterAdsPriceMortgageParams{
+			AdIds:    adIDs,
+			MinPrice: minPrice,
+			MaxPrice: maxPrice,
+		})
+	default:
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid category for price filtering",
+		})
+	}
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("error filtering ads by price: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: filteredAds,
 	})
 }
 

@@ -141,30 +141,30 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 }
 
 type Ad struct {
-	ID             int64     `json:"id"`
-	PublisherAdKey string    `json:"publisher_ad_key"`
-	PublisherID    *int32    `json:"publisher_id"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	PublishedAt    time.Time `json:"published_at"`
-	Category       string    `json:"category"`
-	Author         *string   `json:"author"`
-	Url            *string   `json:"url"`
-	Title          *string   `json:"title"`
-	Description    *string   `json:"description"`
-	City           *string   `json:"city"`
-	Neighborhood   *string   `json:"neighborhood"`
-	HouseType      string    `json:"house_type"`
-	Meterage       *int32    `json:"meterage"`
-	RoomsCount     *int32    `json:"rooms_count"`
-	Year           *int32    `json:"year"`
-	Floor          *int32    `json:"floor"`
-	TotalFloors    *int32    `json:"total_floors"`
-	HasWarehouse   *bool     `json:"has_warehouse"`
-	HasElevator    *bool     `json:"has_elevator"`
-	HasParking     *bool     `json:"has_parking"`
-	Lat            *float64  `json:"lat"`
-	Lng            *float64  `json:"lng"`
+	ID             int64      `json:"id"`
+	PublisherAdKey string     `json:"publisher_ad_key"`
+	PublisherID    *int32     `json:"publisher_id"`
+	CreatedAt      *time.Time `json:"created_at"`
+	UpdatedAt      *time.Time `json:"updated_at"`
+	PublishedAt    *time.Time `json:"published_at"`
+	Category       string     `json:"category"`
+	Author         *string    `json:"author"`
+	Url            *string    `json:"url"`
+	Title          *string    `json:"title"`
+	Description    *string    `json:"description"`
+	City           *string    `json:"city"`
+	Neighborhood   *string    `json:"neighborhood"`
+	HouseType      string     `json:"house_type"`
+	Meterage       *int32     `json:"meterage"`
+	RoomsCount     *int32     `json:"rooms_count"`
+	Year           *int32     `json:"year"`
+	Floor          *int32     `json:"floor"`
+	TotalFloors    *int32     `json:"total_floors"`
+	HasWarehouse   *bool      `json:"has_warehouse"`
+	HasElevator    *bool      `json:"has_elevator"`
+	HasParking     *bool      `json:"has_parking"`
+	Lat            *float64   `json:"lat"`
+	Lng            *float64   `json:"lng"`
 }
 
 type AdPicture struct {
@@ -180,15 +180,15 @@ type FavoriteAd struct {
 }
 
 type Price struct {
-	ID            int32     `json:"id"`
-	AdID          int64     `json:"ad_id"`
-	FetchedAt     time.Time `json:"fetched_at"`
-	HasPrice      *bool     `json:"has_price"`
-	TotalPrice    *int64    `json:"total_price"`
-	PricePerMeter *int64    `json:"price_per_meter"`
-	Mortgage      *int64    `json:"mortgage"`
-	NormalPrice   *int64    `json:"normal_price"`
-	WeekendPrice  *int64    `json:"weekend_price"`
+	ID            int32      `json:"id"`
+	AdID          int64      `json:"ad_id"`
+	FetchedAt     *time.Time `json:"fetched_at"`
+	HasPrice      *bool      `json:"has_price"`
+	TotalPrice    *int64     `json:"total_price"`
+	PricePerMeter *int64     `json:"price_per_meter"`
+	Mortgage      *int64     `json:"mortgage"`
+	NormalPrice   *int64     `json:"normal_price"`
+	WeekendPrice  *int64     `json:"weekend_price"`
 }
 
 type Publisher struct {
