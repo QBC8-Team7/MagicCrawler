@@ -2,11 +2,12 @@ package server
 
 import (
 	"fmt"
-	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
+	"github.com/labstack/echo/v4"
 )
 
 type jsonResponse struct {
@@ -60,9 +61,11 @@ func (s *Server) createAd(c echo.Context) error {
 	adParam.PublishedAt = &now
 	adParam.Url = nil
 
+	fmt.Printf("%+v\n", adParam)
 	ad, err := s.db.CreateAd(s.dbContext, *adParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, jsonResponse{
+		fmt.Println(err)
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
 			Success: false,
 			Message: "invalid params",
 		})
