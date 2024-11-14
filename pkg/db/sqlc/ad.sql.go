@@ -24,27 +24,27 @@ RETURNING id, publisher_ad_key, publisher_id, created_at, updated_at, published_
 `
 
 type CreateAdParams struct {
-	PublisherAdKey string    `json:"publisher_ad_key"`
-	PublisherID    *int32    `json:"publisher_id"`
-	PublishedAt    time.Time `json:"published_at"`
-	Category       string    `json:"category"`
-	Author         *string   `json:"author"`
-	Url            *string   `json:"url"`
-	Title          *string   `json:"title"`
-	Description    *string   `json:"description"`
-	City           *string   `json:"city"`
-	Neighborhood   *string   `json:"neighborhood"`
-	HouseType      string    `json:"house_type"`
-	Meterage       *int32    `json:"meterage"`
-	RoomsCount     *int32    `json:"rooms_count"`
-	Year           *int32    `json:"year"`
-	Floor          *int32    `json:"floor"`
-	TotalFloors    *int32    `json:"total_floors"`
-	HasWarehouse   *bool     `json:"has_warehouse"`
-	HasElevator    *bool     `json:"has_elevator"`
-	HasParking     *bool     `json:"has_parking"`
-	Lat            *float64  `json:"lat"`
-	Lng            *float64  `json:"lng"`
+	PublisherAdKey string     `json:"publisher_ad_key"`
+	PublisherID    *int32     `json:"publisher_id"`
+	PublishedAt    *time.Time `json:"published_at"`
+	Category       string     `json:"category"`
+	Author         *string    `json:"author"`
+	Url            *string    `json:"url"`
+	Title          *string    `json:"title"`
+	Description    *string    `json:"description"`
+	City           *string    `json:"city"`
+	Neighborhood   *string    `json:"neighborhood"`
+	HouseType      string     `json:"house_type"`
+	Meterage       *int32     `json:"meterage"`
+	RoomsCount     *int32     `json:"rooms_count"`
+	Year           *int32     `json:"year"`
+	Floor          *int32     `json:"floor"`
+	TotalFloors    *int32     `json:"total_floors"`
+	HasWarehouse   *bool      `json:"has_warehouse"`
+	HasElevator    *bool      `json:"has_elevator"`
+	HasParking     *bool      `json:"has_parking"`
+	Lat            *float64   `json:"lat"`
+	Lng            *float64   `json:"lng"`
 }
 
 // Insert a new ad
@@ -118,65 +118,68 @@ const filterAds = `-- name: FilterAds :many
 SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
 FROM ad
 WHERE (publisher_id = coalesce($1, publisher_id))
-  AND (updated_at BETWEEN coalesce($2, updated_at) AND coalesce($3, updated_at))
-  AND (published_at BETWEEN coalesce($4, published_at) AND coalesce($5, published_at))
-  AND (category = coalesce($6, category))
-  AND (author = coalesce($7, author))
-  AND (city = coalesce($8, city))
-  AND (neighborhood = coalesce($9, neighborhood))
-  AND (house_type = coalesce($10, house_type))
-  AND (meterage BETWEEN coalesce($11, meterage) AND coalesce($12, meterage))
-  AND (rooms_count BETWEEN coalesce($13, rooms_count) AND coalesce($14, rooms_count))
-  AND (year BETWEEN coalesce($15, year) AND coalesce($16, year))
-  AND (floor BETWEEN coalesce($17, floor) AND coalesce($18, floor))
-  AND (total_floors BETWEEN coalesce($19, total_floors) AND coalesce($20, total_floors))
-  AND (has_warehouse = coalesce($21, has_warehouse))
-  AND (has_elevator = coalesce($22, has_elevator))
-  AND (has_parking = coalesce($23, has_parking))
-  AND (lat BETWEEN coalesce($24, lat) AND coalesce($25, lat))
-  AND (lng BETWEEN coalesce($26, lng) AND coalesce($27, lng))
+  AND (published_at BETWEEN coalesce($2, published_at) AND coalesce($3, published_at))
+  AND (category::TEXT = coalesce($4::TEXT, category::TEXT))
+  AND (author like coalesce($5, author))
+  AND (city = coalesce($6, city))
+  AND (neighborhood = coalesce($7, neighborhood))
+  AND (house_type::TEXT = coalesce($8::TEXT, house_type::TEXT))
+  AND (meterage BETWEEN coalesce($9, meterage) AND coalesce($10, meterage))
+  AND (rooms_count BETWEEN coalesce($11, rooms_count) AND coalesce($12, rooms_count))
+  AND (year BETWEEN coalesce($13, year) AND coalesce($14, year))
+  AND (floor BETWEEN coalesce($15, floor) AND coalesce($16, floor))
+  AND (total_floors BETWEEN coalesce($17, total_floors) AND coalesce($18, total_floors))
+  AND (has_warehouse = coalesce($19, has_warehouse))
+  AND (has_elevator = coalesce($20, has_elevator))
+  AND (has_parking = coalesce($21, has_parking))
+  AND (($22::float IS NOT NULL AND
+        $23::float IS NOT NULL AND
+        $24::int IS NOT NULL AND
+        6371 * ACOS(
+                COS(RADIANS($22)) *
+                COS(RADIANS(lat)) *
+                COS(RADIANS(lng) - RADIANS($23)) +
+                SIN(RADIANS($22)) *
+                SIN(RADIANS(lat))
+               ) <= $24)
+    OR ($22 IS NULL OR $23 IS NULL OR $24 IS NULL))
 ORDER BY created_at DESC
-LIMIT $29 OFFSET $28
+LIMIT $26 OFFSET $25
 `
 
 type FilterAdsParams struct {
-	PublisherID    *int32    `json:"publisher_id"`
-	MinUpdatedAt   time.Time `json:"min_updated_at"`
-	MaxUpdatedAt   time.Time `json:"max_updated_at"`
-	MinPublishedAt time.Time `json:"min_published_at"`
-	MaxPublishedAt time.Time `json:"max_published_at"`
-	Category       string    `json:"category"`
-	Author         *string   `json:"author"`
-	City           *string   `json:"city"`
-	Neighborhood   *string   `json:"neighborhood"`
-	HouseType      string    `json:"house_type"`
-	MinMeterage    *int32    `json:"min_meterage"`
-	MaxMeterage    *int32    `json:"max_meterage"`
-	MinRooms       *int32    `json:"min_rooms"`
-	MaxRooms       *int32    `json:"max_rooms"`
-	MinYear        *int32    `json:"min_year"`
-	MaxYear        *int32    `json:"max_year"`
-	MinFloor       *int32    `json:"min_floor"`
-	MaxFloor       *int32    `json:"max_floor"`
-	MinTotalFloors *int32    `json:"min_total_floors"`
-	MaxTotalFloors *int32    `json:"max_total_floors"`
-	HasWarehouse   *bool     `json:"has_warehouse"`
-	HasElevator    *bool     `json:"has_elevator"`
-	HasParking     *bool     `json:"has_parking"`
-	MinLat         *float64  `json:"min_lat"`
-	MaxLat         *float64  `json:"max_lat"`
-	MinLng         *float64  `json:"min_lng"`
-	MaxLng         *float64  `json:"max_lng"`
-	Offset         *int32    `json:"offset"`
-	Limit          *int32    `json:"limit"`
+	PublisherID    *int32     `json:"publisher_id"`
+	MinPublishedAt *time.Time `json:"min_published_at"`
+	MaxPublishedAt *time.Time `json:"max_published_at"`
+	Category       *string    `json:"category"`
+	Author         *string    `json:"author"`
+	City           *string    `json:"city"`
+	Neighborhood   *string    `json:"neighborhood"`
+	HouseType      *string    `json:"house_type"`
+	MinMeterage    *int32     `json:"min_meterage"`
+	MaxMeterage    *int32     `json:"max_meterage"`
+	MinRooms       *int32     `json:"min_rooms"`
+	MaxRooms       *int32     `json:"max_rooms"`
+	MinYear        *int32     `json:"min_year"`
+	MaxYear        *int32     `json:"max_year"`
+	MinFloor       *int32     `json:"min_floor"`
+	MaxFloor       *int32     `json:"max_floor"`
+	MinTotalFloors *int32     `json:"min_total_floors"`
+	MaxTotalFloors *int32     `json:"max_total_floors"`
+	HasWarehouse   *bool      `json:"has_warehouse"`
+	HasElevator    *bool      `json:"has_elevator"`
+	HasParking     *bool      `json:"has_parking"`
+	Lat            *float64   `json:"lat"`
+	Lng            *float64   `json:"lng"`
+	Radius         *int32     `json:"radius"`
+	Offset         *int32     `json:"offset"`
+	Limit          *int32     `json:"limit"`
 }
 
 // Comprehensive ad search with all attribute filters, including ranges and additional fields
 func (q *Queries) FilterAds(ctx context.Context, arg FilterAdsParams) ([]Ad, error) {
 	rows, err := q.db.Query(ctx, filterAds,
 		arg.PublisherID,
-		arg.MinUpdatedAt,
-		arg.MaxUpdatedAt,
 		arg.MinPublishedAt,
 		arg.MaxPublishedAt,
 		arg.Category,
@@ -197,10 +200,9 @@ func (q *Queries) FilterAds(ctx context.Context, arg FilterAdsParams) ([]Ad, err
 		arg.HasWarehouse,
 		arg.HasElevator,
 		arg.HasParking,
-		arg.MinLat,
-		arg.MaxLat,
-		arg.MinLng,
-		arg.MaxLng,
+		arg.Lat,
+		arg.Lng,
+		arg.Radius,
 		arg.Offset,
 		arg.Limit,
 	)
@@ -493,27 +495,27 @@ RETURNING id, publisher_ad_key, publisher_id, created_at, updated_at, published_
 `
 
 type UpdateAdParams struct {
-	PublisherAdKey *string   `json:"publisher_ad_key"`
-	PublisherID    *int32    `json:"publisher_id"`
-	PublishedAt    time.Time `json:"published_at"`
-	Category       string    `json:"category"`
-	Author         *string   `json:"author"`
-	Url            *string   `json:"url"`
-	Title          *string   `json:"title"`
-	Description    *string   `json:"description"`
-	City           *string   `json:"city"`
-	Neighborhood   *string   `json:"neighborhood"`
-	HouseType      string    `json:"house_type"`
-	Meterage       *int32    `json:"meterage"`
-	RoomsCount     *int32    `json:"rooms_count"`
-	Year           *int32    `json:"year"`
-	Floor          *int32    `json:"floor"`
-	TotalFloors    *int32    `json:"total_floors"`
-	HasWarehouse   *bool     `json:"has_warehouse"`
-	HasElevator    *bool     `json:"has_elevator"`
-	HasParking     *bool     `json:"has_parking"`
-	Lat            *float64  `json:"lat"`
-	Lng            *float64  `json:"lng"`
+	PublisherAdKey *string    `json:"publisher_ad_key"`
+	PublisherID    *int32     `json:"publisher_id"`
+	PublishedAt    *time.Time `json:"published_at"`
+	Category       string     `json:"category"`
+	Author         *string    `json:"author"`
+	Url            *string    `json:"url"`
+	Title          *string    `json:"title"`
+	Description    *string    `json:"description"`
+	City           *string    `json:"city"`
+	Neighborhood   *string    `json:"neighborhood"`
+	HouseType      string     `json:"house_type"`
+	Meterage       *int32     `json:"meterage"`
+	RoomsCount     *int32     `json:"rooms_count"`
+	Year           *int32     `json:"year"`
+	Floor          *int32     `json:"floor"`
+	TotalFloors    *int32     `json:"total_floors"`
+	HasWarehouse   *bool      `json:"has_warehouse"`
+	HasElevator    *bool      `json:"has_elevator"`
+	HasParking     *bool      `json:"has_parking"`
+	Lat            *float64   `json:"lat"`
+	Lng            *float64   `json:"lng"`
 }
 
 // Update an existing ad's details with optional fields

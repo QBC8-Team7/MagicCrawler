@@ -58,89 +58,26 @@ func (q *Queries) CreatePrice(ctx context.Context, arg CreatePriceParams) (Price
 	return i, err
 }
 
-const filterAdsByIdsAndMortgagePriceRange = `-- name: FilterAdsByIdsAndMortgagePriceRange :many
+const filterAdsPriceBuy = `-- name: FilterAdsPriceBuy :many
 SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
 FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
+         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price, price_per_meter
                FROM price
-               WHERE ad_id = ANY ($1::int[])
-                 AND mortgage BETWEEN $2 AND $3
-               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
-ORDER BY ad.created_at DESC
-`
-
-type FilterAdsByIdsAndMortgagePriceRangeParams struct {
-	AdIds    []int32 `json:"ad_ids"`
-	MinPrice *int64  `json:"min_price"`
-	MaxPrice *int64  `json:"max_price"`
-}
-
-// Filter ads based on list of IDs and price range
-func (q *Queries) FilterAdsByIdsAndMortgagePriceRange(ctx context.Context, arg FilterAdsByIdsAndMortgagePriceRangeParams) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, filterAdsByIdsAndMortgagePriceRange, arg.AdIds, arg.MinPrice, arg.MaxPrice)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Ad
-	for rows.Next() {
-		var i Ad
-		if err := rows.Scan(
-			&i.ID,
-			&i.PublisherAdKey,
-			&i.PublisherID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.PublishedAt,
-			&i.Category,
-			&i.Author,
-			&i.Url,
-			&i.Title,
-			&i.Description,
-			&i.City,
-			&i.Neighborhood,
-			&i.HouseType,
-			&i.Meterage,
-			&i.RoomsCount,
-			&i.Year,
-			&i.Floor,
-			&i.TotalFloors,
-			&i.HasWarehouse,
-			&i.HasElevator,
-			&i.HasParking,
-			&i.Lat,
-			&i.Lng,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const filterAdsByIdsAndTotalPriceRange = `-- name: FilterAdsByIdsAndTotalPriceRange :many
-SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
-FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
-               FROM price
-               WHERE ad_id = ANY ($1::int[])
+               WHERE ad_id = ANY ($1::bigint[])
                  AND total_price BETWEEN $2 AND $3
                ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
 ORDER BY ad.created_at DESC
 `
 
-type FilterAdsByIdsAndTotalPriceRangeParams struct {
-	AdIds    []int32 `json:"ad_ids"`
+type FilterAdsPriceBuyParams struct {
+	AdIds    []int64 `json:"ad_ids"`
 	MinPrice *int64  `json:"min_price"`
 	MaxPrice *int64  `json:"max_price"`
 }
 
-// Filter ads based on list of IDs and price range
-func (q *Queries) FilterAdsByIdsAndTotalPriceRange(ctx context.Context, arg FilterAdsByIdsAndTotalPriceRangeParams) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, filterAdsByIdsAndTotalPriceRange, arg.AdIds, arg.MinPrice, arg.MaxPrice)
+// Filter ads based on list of IDs and price range (buy category)
+func (q *Queries) FilterAdsPriceBuy(ctx context.Context, arg FilterAdsPriceBuyParams) ([]Ad, error) {
+	rows, err := q.db.Query(ctx, filterAdsPriceBuy, arg.AdIds, arg.MinPrice, arg.MaxPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -184,34 +121,26 @@ func (q *Queries) FilterAdsByIdsAndTotalPriceRange(ctx context.Context, arg Filt
 	return items, nil
 }
 
-const filterAdsByMortgagePriceRange = `-- name: FilterAdsByMortgagePriceRange :many
+const filterAdsPriceMortgage = `-- name: FilterAdsPriceMortgage :many
 SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
 FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, mortgage
+         JOIN (SELECT DISTINCT ON (ad_id) ad_id, mortgage, normal_price
                FROM price
-               WHERE mortgage >= COALESCE($1, mortgage)
-                 AND mortgage <= COALESCE($2, mortgage)
+               WHERE ad_id = ANY ($1::bigint[])
+                 AND mortgage BETWEEN $2 AND $3
                ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
 ORDER BY ad.created_at DESC
-LIMIT $4 OFFSET $3
 `
 
-type FilterAdsByMortgagePriceRangeParams struct {
-	MinPrice *int64 `json:"min_price"`
-	MaxPrice *int64 `json:"max_price"`
-	Offset   *int32 `json:"offset"`
-	Limit    *int32 `json:"limit"`
+type FilterAdsPriceMortgageParams struct {
+	AdIds    []int64 `json:"ad_ids"`
+	MinPrice *int64  `json:"min_price"`
+	MaxPrice *int64  `json:"max_price"`
 }
 
-// Get ads with their latest mortgage price within the specified range.
-// Handles cases with min_price and max_price individually or together.
-func (q *Queries) FilterAdsByMortgagePriceRange(ctx context.Context, arg FilterAdsByMortgagePriceRangeParams) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, filterAdsByMortgagePriceRange,
-		arg.MinPrice,
-		arg.MaxPrice,
-		arg.Offset,
-		arg.Limit,
-	)
+// Filter ads based on list of IDs and price range (mortgage category)
+func (q *Queries) FilterAdsPriceMortgage(ctx context.Context, arg FilterAdsPriceMortgageParams) ([]Ad, error) {
+	rows, err := q.db.Query(ctx, filterAdsPriceMortgage, arg.AdIds, arg.MinPrice, arg.MaxPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -255,34 +184,26 @@ func (q *Queries) FilterAdsByMortgagePriceRange(ctx context.Context, arg FilterA
 	return items, nil
 }
 
-const filterAdsByTotalPriceRange = `-- name: FilterAdsByTotalPriceRange :many
+const filterAdsPriceRent = `-- name: FilterAdsPriceRent :many
 SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
 FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
+         JOIN (SELECT DISTINCT ON (ad_id) ad_id, normal_price, weekend_price
                FROM price
-               WHERE total_price >= COALESCE($1, total_price)
-                 AND total_price <= COALESCE($2, total_price)
+               WHERE ad_id = ANY ($1::bigint[])
+                 AND normal_price BETWEEN $2 AND $3
                ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
 ORDER BY ad.created_at DESC
-LIMIT $4 OFFSET $3
 `
 
-type FilterAdsByTotalPriceRangeParams struct {
-	MinPrice *int64 `json:"min_price"`
-	MaxPrice *int64 `json:"max_price"`
-	Offset   *int32 `json:"offset"`
-	Limit    *int32 `json:"limit"`
+type FilterAdsPriceRentParams struct {
+	AdIds    []int64 `json:"ad_ids"`
+	MinPrice *int64  `json:"min_price"`
+	MaxPrice *int64  `json:"max_price"`
 }
 
-// Get ads with their latest total price within the specified range.
-// Handles cases with min_price and max_price individually or together.
-func (q *Queries) FilterAdsByTotalPriceRange(ctx context.Context, arg FilterAdsByTotalPriceRangeParams) ([]Ad, error) {
-	rows, err := q.db.Query(ctx, filterAdsByTotalPriceRange,
-		arg.MinPrice,
-		arg.MaxPrice,
-		arg.Offset,
-		arg.Limit,
-	)
+// Filter ads based on list of IDs and price range (rent category)
+func (q *Queries) FilterAdsPriceRent(ctx context.Context, arg FilterAdsPriceRentParams) ([]Ad, error) {
+	rows, err := q.db.Query(ctx, filterAdsPriceRent, arg.AdIds, arg.MinPrice, arg.MaxPrice)
 	if err != nil {
 		return nil, err
 	}

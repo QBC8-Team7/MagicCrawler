@@ -27,51 +27,36 @@ FROM price
 WHERE ad_id = sqlc.arg('id')
 ORDER BY fetched_at;
 
--- Get ads with their latest total price within the specified range.
--- Handles cases with min_price and max_price individually or together.
--- name: FilterAdsByTotalPriceRange :many
+-- Filter ads based on list of IDs and price range (buy category)
+-- name: FilterAdsPriceBuy :many
 SELECT ad.*
 FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
+         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price, price_per_meter
                FROM price
-               WHERE total_price >= COALESCE(sqlc.narg('min_price'), total_price)
-                 AND total_price <= COALESCE(sqlc.narg('max_price'), total_price)
-               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
-ORDER BY ad.created_at DESC
-LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
-
--- Get ads with their latest mortgage price within the specified range.
--- Handles cases with min_price and max_price individually or together.
--- name: FilterAdsByMortgagePriceRange :many
-SELECT ad.*
-FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, mortgage
-               FROM price
-               WHERE mortgage >= COALESCE(sqlc.narg('min_price'), mortgage)
-                 AND mortgage <= COALESCE(sqlc.narg('max_price'), mortgage)
-               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
-ORDER BY ad.created_at DESC
-LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
-
--- Filter ads based on list of IDs and price range
--- name: FilterAdsByIdsAndTotalPriceRange :many
-SELECT ad.*
-FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
-               FROM price
-               WHERE ad_id = ANY (sqlc.narg('ad_ids')::int[])
+               WHERE ad_id = ANY (sqlc.narg('ad_ids')::bigint[])
                  AND total_price BETWEEN sqlc.narg('min_price') AND sqlc.narg('max_price')
                ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
 ORDER BY ad.created_at DESC;
 
--- Filter ads based on list of IDs and price range
--- name: FilterAdsByIdsAndMortgagePriceRange :many
+-- Filter ads based on list of IDs and price range (mortgage category)
+-- name: FilterAdsPriceMortgage :many
 SELECT ad.*
 FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
+         JOIN (SELECT DISTINCT ON (ad_id) ad_id, mortgage, normal_price
                FROM price
-               WHERE ad_id = ANY (sqlc.narg('ad_ids')::int[])
+               WHERE ad_id = ANY (sqlc.narg('ad_ids')::bigint[])
                  AND mortgage BETWEEN sqlc.narg('min_price') AND sqlc.narg('max_price')
+               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
+ORDER BY ad.created_at DESC;
+
+-- Filter ads based on list of IDs and price range (rent category)
+-- name: FilterAdsPriceRent :many
+SELECT ad.*
+FROM ad
+         JOIN (SELECT DISTINCT ON (ad_id) ad_id, normal_price, weekend_price
+               FROM price
+               WHERE ad_id = ANY (sqlc.narg('ad_ids')::bigint[])
+                 AND normal_price BETWEEN sqlc.narg('min_price') AND sqlc.narg('max_price')
                ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
 ORDER BY ad.created_at DESC;
 
