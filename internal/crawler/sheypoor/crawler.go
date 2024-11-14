@@ -6,11 +6,22 @@ import (
 	"time"
 
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/structs"
+	"github.com/QBC8-Team7/MagicCrawler/internal/repositories"
 )
 
-type Crawler struct{}
+type Crawler struct {
+	Repository repositories.CrawlJobRepository
+}
 
-func (s Crawler) CrawlArchivePage(link string, wg *sync.WaitGroup) {
+func GetSourceName() string {
+	return "sheypoor"
+}
+
+func (c Crawler) GetBaseUrl() string {
+	return "https://sheypoor.com"
+}
+
+func (s Crawler) CrawlArchivePage(link string, wg *sync.WaitGroup, timeoutCh <-chan time.Time, statusIsPicked bool) {
 	fmt.Println("Crawling Sheypoor archive page:", link)
 }
 

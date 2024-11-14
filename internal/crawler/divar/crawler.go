@@ -3,6 +3,7 @@ package divar
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,46 +12,122 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/helpers"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/structs"
+	"github.com/QBC8-Team7/MagicCrawler/internal/repositories"
 )
 
-const BaseUrl = "https://divar.ir"
+const ARCHIVE_PAGE = "archive"
+const SINGLE_PAGE = "single"
 
-type Crawler struct{}
+type Crawler struct {
+	Repository repositories.CrawlJobRepository
+}
 
-func (c Crawler) CrawlArchivePage(link string, wg *sync.WaitGroup) {
-	page := 1
+func GetSourceName() string {
+	return "divar"
+}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+func (c Crawler) GetBaseUrl() string {
+	return "https://divar.ir"
+}
 
-		link = fmt.Sprintf("%s?page=%d", link, page)
+func (c Crawler) CrawlArchivePage(link string, wg *sync.WaitGroup, timeoutCh <-chan time.Time, statusIsPicked bool) {
+	defer wg.Done()
 
-		fmt.Println("Archive:", link)
-		htmlContent, err := helpers.GetHtml(link)
+	result := c.Repository.CreateCrawlJobArchivePageLink(link, statusIsPicked, GetSourceName())
+	if result.Err != nil {
+		fmt.Println(result.Err)
+		return
+	}
+
+	if result.Exist {
+		return
+	}
+
+	job := result.Job
+
+	htmlContent, err := helpers.GetHtml(link)
+	if err != nil {
+		// TODO - log here
+		fmt.Println(err)
+		// TODO - maybe we need to put error in db
+		// TODO - maybe we need to save resource usage and time
+		// TODO - maybe we can add try fields for job
+		c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		return
+	}
+
+	links, err := getSinglePageLinksFromArchivePage(htmlContent)
+	if err != nil {
+		fmt.Println(err)
+		// TODO - maybe we need to put error in db
+		// TODO - maybe we need to save resource usage and time
+		// TODO - maybe we can add try fields for job
+		c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		return
+	}
+
+	if len(links) > 0 {
+		nextLink, err := getNextPageLink(link)
 		if err != nil {
 			fmt.Println(err)
+			// TODO - error handling
+			// TODO - maybe we need to save resource usage and time
+			// TODO - maybe we can add try fields for job
+			c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+			return
+		}
+
+		// TODO - maybe we need to use transactions to make sure all links with next link inserted successfuly together
+
+		errors := c.Repository.CreateCrawlJobForSinglePageLinks(links, GetSourceName())
+		if len(errors) > 0 {
+			fmt.Println(errors[0])
+			// TODO - error handling
+			// TODO - maybe we need to save resource usage and time
+			// TODO - maybe we can add try fields for job
+			c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+			return
+		}
+
+		nextLinkResult := c.Repository.CreateCrawlJobArchivePageLink(nextLink, false, GetSourceName())
+		if nextLinkResult.Err != nil {
 			// TODO - log here
+			fmt.Println(nextLinkResult.Err)
+			// TODO - maybe we need to put error in db
+			// TODO - maybe we need to save resource usage and time
+			// TODO - maybe we can add try fields for job
+			c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+			return
 		}
+	}
 
-		links, err := getSinglePageLinksFromArchivePage(htmlContent)
-		if err != nil {
-			// TODO - log here
+	c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
+}
+
+func getNextPageLink(link string) (string, error) {
+	u, err := url.Parse(link)
+	if err != nil {
+		return "", err
+	}
+
+	query := u.Query()
+	pageStr := query.Get("page")
+
+	page := 1
+	if pageStr == "" {
+		pageInt, err := strconv.Atoi(pageStr)
+		if err != nil || pageInt <= 1 {
+			page = 2
+		} else {
+			page = pageInt + 1
 		}
+	} else {
+		page++
+	}
 
-		for _, singlePageLink := range links {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				// TODO - insert links in DB queue table
-
-				fmt.Println("SINGLE:", singlePageLink)
-			}()
-			time.Sleep(time.Second)
-		}
-
-	}()
-
+	query.Set("page", strconv.Itoa(page))
+	u.RawQuery = query.Encode()
+	return u.String(), nil
 }
 
 func getSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
