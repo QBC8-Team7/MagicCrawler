@@ -10,8 +10,8 @@ import (
 )
 
 type jsonResponse struct {
-	Success bool        `json:"success"`
-	Message interface{} `json:"message"`
+	Success bool `json:"success"`
+	Message any  `json:"message"`
 }
 
 func (s *Server) checkUserAccessToAd(userRole, userID string, adID int64) (bool, error) {
@@ -20,14 +20,14 @@ func (s *Server) checkUserAccessToAd(userRole, userID string, adID int64) (bool,
 		return true, nil
 	}
 
-	userAds, err := s.db.GetUserAds(s.dbContext, &userID)
+	userAds, err := s.db.GetUserAds(s.dbContext, userID)
 	if err != nil {
 		return false, fmt.Errorf("error checking user ads: %w", err)
 	}
 
 	// Check if the ad belongs to the user
 	for _, id := range userAds {
-		if id != nil && *id == adID {
+		if id == adID {
 			return true, nil
 		}
 	}
@@ -43,12 +43,13 @@ func healthCheck(c echo.Context) error {
 	})
 }
 
+// Ad Group Handlers
 func (s *Server) createAd(c echo.Context) error {
 	adParam := new(sqlc.CreateAdParams)
 	if err := c.Bind(adParam); err != nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
-			Message: fmt.Sprintf("cannot parse the body into ad: %v", err),
+			Message: "invalid params",
 		})
 	}
 
@@ -59,23 +60,23 @@ func (s *Server) createAd(c echo.Context) error {
 
 	ad, err := s.db.CreateAd(s.dbContext, *adParam)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, jsonResponse{
+		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
-			Message: fmt.Sprintf("internal error while creating new ad: %v", err),
+			Message: "invalid params",
 		})
 	}
 
-	tgID := c.Request().Header.Get("Authorization")
-	if tgID == "" {
-		return c.JSON(http.StatusUnauthorized, jsonResponse{
+	tgID, ok := c.Get("UserID").(string)
+	if !ok || tgID == "" {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
 			Success: false,
-			Message: "cannot get user id from header",
+			Message: "user ID is not set",
 		})
 	}
 
 	createUserAdParam := &sqlc.CreateUserAdParams{
-		UserID: &tgID,
-		AdID:   &ad.ID,
+		UserID: tgID,
+		AdID:   ad.ID,
 	}
 
 	err = s.db.CreateUserAd(s.dbContext, *createUserAdParam)
@@ -102,7 +103,7 @@ func (s *Server) deleteAdByID(c echo.Context) error {
 	}
 
 	userID, ok := c.Get("UserID").(string)
-	if !ok {
+	if !ok || userID == "" {
 		return c.JSON(http.StatusInternalServerError, jsonResponse{
 			Success: false,
 			Message: "user ID is not set",
@@ -110,7 +111,7 @@ func (s *Server) deleteAdByID(c echo.Context) error {
 	}
 
 	userRole, ok := c.Get("UserRole").(string)
-	if !ok {
+	if !ok || userRole == "" {
 		return c.JSON(http.StatusInternalServerError, jsonResponse{
 			Success: false,
 			Message: "user role is not set",
@@ -169,6 +170,57 @@ func (s *Server) getAdById(c echo.Context) error {
 	})
 }
 
+func (s *Server) getAllAds(c echo.Context) error {
+	limitStr := c.QueryParam("limit")
+	offsetStr := c.QueryParam("offset")
+	if limitStr == "" {
+		limitStr = "10"
+	}
+	if offsetStr == "" {
+		offsetStr = "0"
+	}
+
+	limitInt, err := strconv.Atoi(limitStr)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid limit",
+		})
+	}
+	offsetInt, err := strconv.ParseInt(offsetStr, 10, 32)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid offset",
+		})
+	}
+	limit := int32(limitInt)
+	offset := int32(offsetInt)
+
+	getAllAdsParam := sqlc.GetAllAdsParams{
+		Limit:  &limit,
+		Offset: &offset,
+	}
+
+	ads, err := s.db.GetAllAds(s.dbContext, getAllAdsParam)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting all ads: %v", err),
+		})
+	}
+
+	if len(ads) == 0 {
+		ads = []sqlc.Ad{}
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: ads,
+	})
+}
+
+// Price Group Handlers
 func (s *Server) setPriceOnAd(c echo.Context) error {
 	priceParam := new(sqlc.CreatePriceParams)
 
@@ -180,7 +232,7 @@ func (s *Server) setPriceOnAd(c echo.Context) error {
 	}
 
 	userID, ok := c.Get("UserID").(string)
-	if !ok {
+	if !ok || userID == "" {
 		return c.JSON(http.StatusInternalServerError, jsonResponse{
 			Success: false,
 			Message: "user ID is not set",
@@ -188,7 +240,7 @@ func (s *Server) setPriceOnAd(c echo.Context) error {
 	}
 
 	userRole, ok := c.Get("UserRole").(string)
-	if !ok {
+	if !ok || userRole == "" {
 		return c.JSON(http.StatusInternalServerError, jsonResponse{
 			Success: false,
 			Message: "user role is not set",
@@ -247,95 +299,6 @@ func (s *Server) getAdsLatestPrice(c echo.Context) error {
 	})
 }
 
-func (s *Server) getAllAds(c echo.Context) error {
-	limitStr := c.QueryParam("limit")
-	offsetStr := c.QueryParam("offset")
-	if limitStr == "" {
-		limitStr = "10"
-	}
-	if offsetStr == "" {
-		offsetStr = "0"
-	}
-
-	limitInt, err := strconv.Atoi(limitStr)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, jsonResponse{
-			Success: false,
-			Message: "invalid limit",
-		})
-	}
-	offsetInt, err := strconv.ParseInt(offsetStr, 10, 32)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, jsonResponse{
-			Success: false,
-			Message: "invalid offset",
-		})
-	}
-	limit := int32(limitInt)
-	offset := int32(offsetInt)
-
-	getAllAdsParam := sqlc.GetAllAdsParams{
-		Limit:  &limit,
-		Offset: &offset,
-	}
-	ads, err := s.db.GetAllAds(s.dbContext, getAllAdsParam)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, jsonResponse{
-			Success: false,
-			Message: fmt.Sprintf("internal error while getting all ads: %v", err),
-		})
-	}
-
-	if len(ads) == 0 {
-		return c.JSON(http.StatusNoContent, jsonResponse{
-			Success: true,
-			Message: []sqlc.Ad{},
-		})
-	}
-
-	return c.JSON(http.StatusOK, jsonResponse{
-		Success: true,
-		Message: ads,
-	})
-}
-
-func (s *Server) getUsersAds(c echo.Context) error {
-	userID := c.Get("UserID").(string)
-
-	idPointers, err := s.db.GetUserAds(s.dbContext, &userID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, jsonResponse{
-			Success: false,
-			Message: fmt.Sprintf("internal error while getting user ads: %v", err),
-		})
-	}
-
-	var ids []int64
-	for _, id := range idPointers {
-		ids = append(ids, *id)
-	}
-
-	ads, err := s.db.GetAdsByIds(s.dbContext, ids)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, jsonResponse{
-			Success: false,
-			Message: fmt.Sprintf("internal error while getting user ads: %v", err),
-		})
-	}
-
-	if len(ads) == 0 {
-		return c.JSON(http.StatusNoContent, jsonResponse{
-			Success: true,
-			Message: []sqlc.Ad{},
-		})
-	}
-
-	return c.JSON(http.StatusOK, jsonResponse{
-		Success: true,
-		Message: ads,
-	})
-}
-
 func (s *Server) getAdsAllPrices(c echo.Context) error {
 	adID, err := strconv.ParseInt(c.Param("adID"), 10, 64)
 	if err != nil {
@@ -354,14 +317,329 @@ func (s *Server) getAdsAllPrices(c echo.Context) error {
 	}
 
 	if len(prices) == 0 {
-		return c.JSON(http.StatusNoContent, jsonResponse{
-			Success: true,
-			Message: []sqlc.Price{},
-		})
+		prices = []sqlc.Price{}
 	}
 
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
 		Message: prices,
+	})
+}
+
+// Picture Groups Handlers
+func (s *Server) getAdPictures(c echo.Context) error {
+	adID, err := strconv.ParseInt(c.Param("adID"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid ad ID",
+		})
+	}
+
+	_, err = s.db.GetAdByID(s.dbContext, adID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, jsonResponse{
+			Success: false,
+			Message: "ad not found",
+		})
+	}
+
+	adPictures, err := s.db.GetAdPictures(s.dbContext, &adID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting ad adPictures: %v", err),
+		})
+	}
+
+	if len(adPictures) == 0 {
+		adPictures = []sqlc.AdPicture{}
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: adPictures,
+	})
+}
+
+func (s *Server) deletePicture(c echo.Context) error {
+	pictureID, err := strconv.ParseInt(c.Param("pictureID"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid picture ID",
+		})
+	}
+
+	_, err = s.db.GetPictureByID(s.dbContext, pictureID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, jsonResponse{
+			Success: false,
+			Message: "picture not found",
+		})
+	}
+
+	err = s.db.DeletePictureByID(s.dbContext, pictureID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while deleting ad picture: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: "ad picture deleted successfully",
+	})
+}
+
+func (s *Server) createAdPicture(c echo.Context) error {
+	createPicParam := new(sqlc.CreateAdPictureParams)
+
+	if err := c.Bind(&createPicParam); err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid params",
+		})
+	}
+
+	_, err := s.db.GetAdByID(s.dbContext, *createPicParam.AdID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, jsonResponse{
+			Success: false,
+			Message: "ad not found",
+		})
+	}
+
+	picture, err := s.db.CreateAdPicture(s.dbContext, *createPicParam)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while creating ad picture: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: picture,
+	})
+}
+
+// User Group Handlers
+func (s *Server) getUsersAds(c echo.Context) error {
+	userID, ok := c.Get("UserID").(string)
+	if !ok || userID == "" {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "user ID is not set",
+		})
+	}
+
+	adIDs, err := s.db.GetUserAds(s.dbContext, userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting user ads: %v", err),
+		})
+	}
+
+	ads, err := s.db.GetAdsByIds(s.dbContext, adIDs)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting user ads: %v", err),
+		})
+	}
+
+	if len(ads) == 0 {
+		ads = []sqlc.Ad{}
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: ads,
+	})
+}
+
+func (s *Server) createUserFavoriteAd(c echo.Context) error {
+	adID, err := strconv.ParseInt(c.Param("adID"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid ad ID",
+		})
+	}
+
+	userID, ok := c.Get("UserID").(string)
+	if !ok || userID == "" {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "user ID is not set",
+		})
+	}
+
+	userFavorites, err := s.db.GetUserFavoriteAds(s.dbContext, userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting user favorites: %v", err),
+		})
+	}
+
+	for _, favoriteID := range userFavorites {
+		if favoriteID == adID {
+			return c.JSON(http.StatusConflict, jsonResponse{
+				Success: false,
+				Message: "user favorite ad already exists",
+			})
+		}
+	}
+
+	_, err = s.db.GetAdByID(s.dbContext, adID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, jsonResponse{
+			Success: false,
+			Message: "ad not found",
+		})
+	}
+
+	createFavoriteParam := &sqlc.CreateUserFavoriteAdParams{
+		UserID: userID,
+		AdID:   adID,
+	}
+
+	err = s.db.CreateUserFavoriteAd(s.dbContext, *createFavoriteParam)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while creating user favorite ad: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: "user favorite ad created",
+	})
+}
+
+func (s *Server) getUserFavoriteAds(c echo.Context) error {
+	userID, ok := c.Get("UserID").(string)
+	if !ok || userID == "" {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "user ID is not set",
+		})
+	}
+
+	adIDs, err := s.db.GetUserFavoriteAds(s.dbContext, userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting user favorite ads: %v", err),
+		})
+	}
+
+	ads, err := s.db.GetAdsByIds(s.dbContext, adIDs)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting user ads: %v", err),
+		})
+	}
+
+	if len(ads) == 0 {
+		ads = []sqlc.Ad{}
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: ads,
+	})
+}
+
+func (s *Server) deleteUserFavoriteAd(c echo.Context) error {
+	adID, err := strconv.ParseInt(c.Param("adID"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid ad ID",
+		})
+	}
+
+	userID, ok := c.Get("UserID").(string)
+	if !ok || userID == "" {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "user ID is not set",
+		})
+	}
+
+	userFavorites, err := s.db.GetUserFavoriteAds(s.dbContext, userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting user favorites: %v", err),
+		})
+	}
+
+	favoriteExists := false
+	for _, favoriteID := range userFavorites {
+		if favoriteID == adID {
+			favoriteExists = true
+		}
+	}
+	if !favoriteExists {
+		return c.JSON(http.StatusNotFound, jsonResponse{
+			Success: false,
+			Message: "this ad is not one of user's favorite ads",
+		})
+	}
+
+	deleteFavoriteParam := &sqlc.DeleteUserFavoriteAdParams{
+		UserID: userID,
+		AdID:   adID,
+	}
+	err = s.db.DeleteUserFavoriteAd(s.dbContext, *deleteFavoriteParam)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while deleting user favorite ad: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: "user favorite ad deleted",
+	})
+}
+
+func (s *Server) getUserInfo(c echo.Context) error {
+	userID, ok := c.Get("UserID").(string)
+	if !ok || userID == "" {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "user ID is not set",
+		})
+	}
+
+	userRole, ok := c.Get("UserRole").(string)
+	if !ok || userRole == "" {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "user role is not set",
+		})
+	}
+
+	user, err := s.db.GetUserByTGID(s.dbContext, userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while getting user info: %v", err),
+		})
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: user,
 	})
 }

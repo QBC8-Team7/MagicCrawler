@@ -57,7 +57,7 @@ LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
 -- name: GetAdsByIds :many
 SELECT *
 FROM ad
-WHERE id = ANY(sqlc.narg('ad_ids')::bigint[])
+WHERE id = ANY (sqlc.narg('ad_ids')::bigint[])
 ORDER BY created_at DESC;
 
 -- Comprehensive ad search with all attribute filters, including ranges and additional fields
