@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 	"github.com/labstack/echo/v4"
 	"net/http"
@@ -10,6 +9,11 @@ import (
 
 	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
 )
+
+type jsonResponse struct {
+	Success bool `json:"success"`
+	Message any  `json:"message"`
+}
 
 func WithRequestLogger(logger *logger.AppLogger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -48,7 +52,10 @@ func WithAuthentication(ctx context.Context, db *sqlc.Queries) echo.MiddlewareFu
 
 			userTgID := c.Request().Header.Get("Authorization")
 			if userTgID == "" {
-				return echo.NewHTTPError(http.StatusUnauthorized, "Authorization header required")
+				return c.JSON(http.StatusUnauthorized, jsonResponse{
+					Success: false,
+					Message: "authorization header required",
+				})
 			}
 
 			var user sqlc.User
@@ -62,7 +69,10 @@ func WithAuthentication(ctx context.Context, db *sqlc.Queries) echo.MiddlewareFu
 				param := sqlc.CreateUserParams{TgID: userTgID, Role: role, WatchlistPeriod: &period}
 				user, err = db.CreateUser(ctx, param)
 				if err != nil {
-					return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("can not create user: %w", err))
+					return c.JSON(http.StatusInternalServerError, jsonResponse{
+						Success: false,
+						Message: err,
+					})
 				}
 			}
 

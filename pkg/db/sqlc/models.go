@@ -174,9 +174,9 @@ type AdPicture struct {
 }
 
 type FavoriteAd struct {
-	ID     int64   `json:"id"`
-	UserID *string `json:"user_id"`
-	AdID   *int64  `json:"ad_id"`
+	ID     int64  `json:"id"`
+	UserID string `json:"user_id"`
+	AdID   int64  `json:"ad_id"`
 }
 
 type Price struct {
@@ -204,7 +204,7 @@ type User struct {
 }
 
 type UserAd struct {
-	ID     int64   `json:"id"`
-	UserID *string `json:"user_id"`
-	AdID   *int64  `json:"ad_id"`
+	ID     int64  `json:"id"`
+	UserID string `json:"user_id"`
+	AdID   int64  `json:"ad_id"`
 }

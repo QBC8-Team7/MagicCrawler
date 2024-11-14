@@ -289,7 +289,7 @@ func (q *Queries) GetAdByID(ctx context.Context, id int64) (Ad, error) {
 const getAdsByIds = `-- name: GetAdsByIds :many
 SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
 FROM ad
-WHERE id = ANY($1::bigint[])
+WHERE id = ANY ($1::bigint[])
 ORDER BY created_at DESC
 `
 
