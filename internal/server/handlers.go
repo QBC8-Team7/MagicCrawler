@@ -331,6 +331,10 @@ func (s *Server) searchAds(c echo.Context) error {
 		})
 	}
 
+	if len(filteredAds) == 0 {
+		filteredAds = []sqlc.Ad{}
+	}
+
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
 		Message: filteredAds,
