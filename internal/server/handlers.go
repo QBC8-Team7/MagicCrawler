@@ -49,7 +49,7 @@ func (s *Server) createAd(c echo.Context) error {
 	if err := c.Bind(adParam); err != nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
-			Message: fmt.Sprintf("invalid params"),
+			Message: "invalid params",
 		})
 	}
 
@@ -62,7 +62,7 @@ func (s *Server) createAd(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
-			Message: fmt.Sprintf("invalid params"),
+			Message: "invalid params",
 		})
 	}
 
@@ -499,7 +499,7 @@ func (s *Server) createUserFavoriteAd(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, jsonResponse{
 			Success: false,
-			Message: fmt.Sprintf("ad not found"),
+			Message: "ad not found",
 		})
 	}
 
