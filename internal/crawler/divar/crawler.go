@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/helpers"
@@ -15,10 +14,7 @@ import (
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 )
 
-const ARCHIVE_PAGE = "archive"
-const SINGLE_PAGE = "single"
-
-type Crawler struct {
+type DivarCrawler struct {
 	Repository repositories.CrawlJobRepository
 }
 
@@ -26,87 +22,23 @@ func GetSourceName() string {
 	return "divar"
 }
 
-func (c Crawler) GetBaseUrl() string {
+func (dc DivarCrawler) GetSourceName() string {
+	return "divar"
+}
+
+func (dc DivarCrawler) GetBaseUrl() string {
 	return "https://divar.ir"
 }
 
-func (c Crawler) CreateCrawlJobArchivePageLink(link string) repositories.RepoResult {
-	return c.Repository.CreateCrawlJobArchivePageLink(link, GetSourceName())
+func (dc DivarCrawler) GetRepository() repositories.CrawlJobRepository {
+	return dc.Repository
 }
 
-func (c Crawler) CrawlArchivePage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh <-chan time.Time) {
-	defer wg.Done()
-
-	_, err := c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_PICKED)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	htmlContent, err := helpers.GetHtml(job.Url)
-	if err != nil {
-		// TODO - log here
-		fmt.Println(err)
-		// TODO - maybe we need to put error in db
-		// TODO - maybe we need to save resource usage and time
-		// TODO - maybe we can add try fields for job
-		c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
-		return
-	}
-
-	links, err := getSinglePageLinksFromArchivePage(htmlContent)
-	if err != nil {
-		fmt.Println(err)
-		// TODO - maybe we need to put error in db
-		// TODO - maybe we need to save resource usage and time
-		// TODO - maybe we can add try fields for job
-		c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
-		return
-	}
-
-	if len(links) > 0 {
-		fmt.Println("links count:", len(links))
-		nextLink, err := helpers.GetNextPageLink(job.Url)
-		if err != nil {
-			fmt.Println(err)
-			// TODO - error handling
-			// TODO - maybe we need to save resource usage and time
-			// TODO - maybe we can add try fields for job
-			c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
-			return
-		}
-
-		// TODO - maybe we need to use transactions to make sure all links with next link inserted successfuly together
-
-		errors := c.Repository.CreateCrawlJobForSinglePageLinks(links, GetSourceName())
-		if len(errors) > 0 {
-			fmt.Println(errors[0])
-			// TODO - error handling
-			// TODO - maybe we need to save resource usage and time
-			// TODO - maybe we can add try fields for job
-			c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
-			return
-		}
-
-		nextLinkResult := c.Repository.CreateCrawlJobArchivePageLink(nextLink, GetSourceName())
-		fmt.Println("next link:", nextLink)
-		if nextLinkResult.Err != nil {
-			// TODO - log here
-			fmt.Println(nextLinkResult.Err)
-			// TODO - maybe we need to put error in db
-			// TODO - maybe we need to save resource usage and time
-			// TODO - maybe we can add try fields for job
-			c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
-			return
-		}
-
-		wg.Add(len(links) + 1)
-	}
-
-	c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
+func (dc DivarCrawler) CreateCrawlJobArchivePageLink(link string) repositories.RepoResult {
+	return dc.Repository.CreateCrawlJobArchivePageLink(link, GetSourceName())
 }
 
-func getSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
+func (dc DivarCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return []string{}, fmt.Errorf("error parsing html: %s", err)
@@ -135,10 +67,10 @@ func getSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
 	return links, nil
 }
 
-func (c Crawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh <-chan time.Time) (structs.CrawledData, error) {
+func (dc DivarCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (structs.CrawledData, error) {
 	defer wg.Done()
 	fmt.Println("crawl item page", job.ID)
-	c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
+	dc.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
 	return structs.CrawledData{}, nil
 
 	htmlContent, err := helpers.GetHtml(job.Url)
@@ -149,17 +81,17 @@ func (c Crawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh 
 	crawledData := structs.CrawledData{}
 
 	// fill general data
-	err = c.catchGeneralData(htmlContent, &crawledData)
+	err = dc.catchGeneralData(htmlContent, &crawledData)
 	if err != nil {
 		return structs.CrawledData{}, err
 	}
 
-	err = c.catchPublishedAt(htmlContent, &crawledData)
+	err = dc.catchPublishedAt(htmlContent, &crawledData)
 	if err != nil {
 		return structs.CrawledData{}, err
 	}
 
-	err = c.catchPricesAndSomeOtherData(htmlContent, &crawledData)
+	err = dc.catchPricesAndSomeOtherData(htmlContent, &crawledData)
 	if err != nil {
 		return structs.CrawledData{}, err
 	}
@@ -168,7 +100,7 @@ func (c Crawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh 
 	return crawledData, nil
 }
 
-func (c Crawler) catchGeneralData(htmlContent string, crawledData *structs.CrawledData) error {
+func (dc DivarCrawler) catchGeneralData(htmlContent string, crawledData *structs.CrawledData) error {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return fmt.Errorf("error parsing html: %s", err)
@@ -238,7 +170,7 @@ func getHouseType(category string) string {
 	return ""
 }
 
-func (c Crawler) catchPublishedAt(htmlContent string, crawledData *structs.CrawledData) error {
+func (dc DivarCrawler) catchPublishedAt(htmlContent string, crawledData *structs.CrawledData) error {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return fmt.Errorf("error parsing html: %s", err)
@@ -259,7 +191,7 @@ func (c Crawler) catchPublishedAt(htmlContent string, crawledData *structs.Crawl
 	return nil
 }
 
-func (c Crawler) catchPricesAndSomeOtherData(htmlContent string, crawledData *structs.CrawledData) error {
+func (dc DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledData *structs.CrawledData) error {
 	startPattern := `"LIST_DATA"\s*:\s*`
 	endPattern := `\s*}\s*]\s*}\s*`
 

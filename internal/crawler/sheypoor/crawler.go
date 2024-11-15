@@ -10,7 +10,7 @@ import (
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 )
 
-type Crawler struct {
+type SheypoorCrawler struct {
 	Repository repositories.CrawlJobRepository
 }
 
@@ -18,15 +18,19 @@ func GetSourceName() string {
 	return "sheypoor"
 }
 
-func (c Crawler) GetBaseUrl() string {
+func (sc SheypoorCrawler) GetSourceName() string {
+	return "sheypoor"
+}
+
+func (sc SheypoorCrawler) GetBaseUrl() string {
 	return "https://sheypoor.com"
 }
 
-func (s Crawler) CrawlArchivePage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh <-chan time.Time) {
-	fmt.Println("Crawling Sheypoor archive page:", job.Url)
+func (sc SheypoorCrawler) GetRepository() repositories.CrawlJobRepository {
+	return sc.Repository
 }
 
-func (s Crawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh <-chan time.Time) (structs.CrawledData, error) {
+func (sc SheypoorCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (structs.CrawledData, error) {
 	fmt.Println("start ItemPage", job.Url)
 
 	time.Sleep(time.Second * 20)
@@ -34,6 +38,10 @@ func (s Crawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh 
 	return structs.CrawledData{}, nil
 }
 
-func (s Crawler) CreateCrawlJobArchivePageLink(link string) repositories.RepoResult {
+func (sc SheypoorCrawler) CreateCrawlJobArchivePageLink(link string) repositories.RepoResult {
 	return repositories.RepoResult{}
+}
+
+func (sc SheypoorCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
+	return []string{}, nil
 }

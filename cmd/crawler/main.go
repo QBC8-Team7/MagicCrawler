@@ -50,7 +50,7 @@ func main() {
 
 	// Set crawl duration to 10 minutes
 	// TODO - use context if you can
-	timeout := time.Duration(10) * time.Minute
+	timeout := time.Duration(5) * time.Second
 	timeoutCh := time.After(timeout)
 
 	// TODO - better to use buffered channel
@@ -60,6 +60,12 @@ func main() {
 
 	crawlJobRepository := repositories.CrawlJobRepository{
 		Queries: queries,
+	}
+
+	err = makeFailedOldCrawlJobs(crawlJobRepository)
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 
 	for _, seed := range seeds {
@@ -84,10 +90,10 @@ func main() {
 
 			workerCrawler := crawler.NewCrawler(crawlJob.SourceName, crawlJobRepository)
 			// TODO - you should move divar constant
-			if crawlJob.PageType == divar.ARCHIVE_PAGE {
-				workerCrawler.CrawlArchivePage(crawlJob, &wg, timeoutCh)
+			if crawlJob.PageType == crawler.ARCHIVE_PAGE {
+				crawler.CrawlArchivePage(workerCrawler, crawlJob, &wg)
 			} else {
-				workerCrawler.CrawlItemPage(crawlJob, &wg, timeoutCh)
+				workerCrawler.CrawlItemPage(crawlJob, &wg)
 			}
 
 			time.Sleep(time.Millisecond * 200)
@@ -103,7 +109,18 @@ func main() {
 	case <-done:
 		return
 	case <-timeoutCh:
+		makeFailedOldCrawlJobs(crawlJobRepository)
 		return
 	}
 
+}
+
+func makeFailedOldCrawlJobs(crawlJobRepository repositories.CrawlJobRepository) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return crawlJobRepository.Queries.ChangeAllCrawlJobsStatus(ctx, sqlc.ChangeAllCrawlJobsStatusParams{
+		Statuses:  []string{repositories.CRAWLJOB_STATUS_WAITING, repositories.CRAWLJOB_STATUS_PICKED},
+		NewStatus: repositories.CRAWLJOB_STATUS_FAILED,
+	})
 }

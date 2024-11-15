@@ -10,8 +10,7 @@ RETURNING *;
 -- statuses: text[]
 SELECT EXISTS (
     SELECT 1 FROM crawl_jobs 
-    WHERE url = @url 
-      AND status = ANY(@statuses::text[])
+    WHERE url = @url AND status = ANY(@statuses::text[])
 ) AS exists;
 
 
@@ -19,8 +18,7 @@ SELECT EXISTS (
 -- url: text
 -- statuses: text[]
 SELECT * FROM crawl_jobs
-WHERE url = sqlc.arg('url')
-  AND status = ANY(sqlc.arg('statuses'))
+WHERE url = @url AND status = ANY(@statuses::text[])
 LIMIT 1;
 
 -- name: UpdateCrawlJobStatus :one
@@ -33,3 +31,11 @@ RETURNING id;
 SELECT * FROM crawl_jobs
 WHERE status = sqlc.arg('status') 
 LIMIT 1;
+
+
+-- name: ChangeAllCrawlJobsStatus :exec
+-- new_status: text
+-- current_statuses: text[]
+UPDATE crawl_jobs 
+SET status = @new_status
+WHERE status = ANY(@statuses::text[]);

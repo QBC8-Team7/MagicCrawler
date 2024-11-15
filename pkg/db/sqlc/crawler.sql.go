@@ -9,11 +9,28 @@ import (
 	"context"
 )
 
+const changeAllCrawlJobsStatus = `-- name: ChangeAllCrawlJobsStatus :exec
+UPDATE crawl_jobs 
+SET status = $1
+WHERE status = ANY($2::text[])
+`
+
+type ChangeAllCrawlJobsStatusParams struct {
+	NewStatus string   `json:"new_status"`
+	Statuses  []string `json:"statuses"`
+}
+
+// new_status: text
+// current_statuses: text[]
+func (q *Queries) ChangeAllCrawlJobsStatus(ctx context.Context, arg ChangeAllCrawlJobsStatusParams) error {
+	_, err := q.db.Exec(ctx, changeAllCrawlJobsStatus, arg.NewStatus, arg.Statuses)
+	return err
+}
+
 const checkCrawlJobExists = `-- name: CheckCrawlJobExists :one
 SELECT EXISTS (
     SELECT 1 FROM crawl_jobs 
-    WHERE url = $1 
-      AND status = ANY($2::text[])
+    WHERE url = $1 AND status = ANY($2::text[])
 ) AS exists
 `
 
@@ -94,14 +111,13 @@ func (q *Queries) GetFirstCrawlJobByStatus(ctx context.Context, status string) (
 
 const getFirstMatchingCrawlJob = `-- name: GetFirstMatchingCrawlJob :one
 SELECT id, url, source_name, page_type, status, consumed_time_seconds, cpu_usage, ram_usage, created_at, updated_at FROM crawl_jobs
-WHERE url = $1
-  AND status = ANY($2)
+WHERE url = $1 AND status = ANY($2::text[])
 LIMIT 1
 `
 
 type GetFirstMatchingCrawlJobParams struct {
-	Url      string `json:"url"`
-	Statuses string `json:"statuses"`
+	Url      string   `json:"url"`
+	Statuses []string `json:"statuses"`
 }
 
 // url: text
