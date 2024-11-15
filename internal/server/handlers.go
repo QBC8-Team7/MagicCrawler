@@ -795,6 +795,13 @@ func (s *Server) updateUserWatchListPeriod(c echo.Context) error {
 		})
 	}
 	adParam.TgID = userID
+
+	if adParam.WatchlistPeriod == nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "WatchList is Required",
+		})
+	}
 	_, err := s.db.UpdateUser(s.dbContext, *adParam)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, jsonResponse{
@@ -805,7 +812,7 @@ func (s *Server) updateUserWatchListPeriod(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
-		Message: "user updated",
+		Message: "user watchlist updated",
 	})
 }
 
