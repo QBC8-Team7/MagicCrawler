@@ -12,6 +12,7 @@ func registerRoutes(e *echo.Echo, s *Server) {
 	adGroup := apiV1.Group("/ad")
 	adGroup.DELETE("/:adID", s.deleteAdByID)
 	adGroup.GET("/search", s.searchAds)
+	adGroup.GET("/populars", s.getPopularAds)
 	adGroup.GET("/:adID", s.getAdById)
 	adGroup.GET("", s.getAllAds)
 	adGroup.POST("", s.createAd)
