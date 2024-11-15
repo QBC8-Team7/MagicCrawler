@@ -778,6 +778,37 @@ func (s *Server) deleteUserFavoriteAd(c echo.Context) error {
 	})
 }
 
+func (s *Server) updateUserWatchListPeriod(c echo.Context) error {
+	userID, ok := c.Get("UserID").(string)
+	if !ok || userID == "" {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "user ID is not set",
+		})
+	}
+
+	adParam := new(sqlc.UpdateUserParams)
+	if err := c.Bind(adParam); err != nil {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid params",
+		})
+	}
+	adParam.TgID = userID
+	_, err := s.db.UpdateUser(s.dbContext, *adParam)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, jsonResponse{
+			Success: false,
+			Message: "user found",
+		})
+	}
+
+	return c.JSON(http.StatusOK, jsonResponse{
+		Success: true,
+		Message: "user updated",
+	})
+}
+
 func (s *Server) getUserInfo(c echo.Context) error {
 	userID, ok := c.Get("UserID").(string)
 	if !ok || userID == "" {

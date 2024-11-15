@@ -21,6 +21,9 @@ migrate-up:
 migrate-down:
 	migrate -database "postgres://postgres:postgres@localhost:5432/magic-crawler?sslmode=disable" -path ./pkg/db/migration down
 
+migrate-v:
+	migrate -database "postgres://postgres:postgres@localhost:5432/magic-crawler?sslmode=disable" -version
+
 sqlc-check:
 	sqlc compile -f config/sqlc.yml
 

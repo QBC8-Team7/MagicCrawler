@@ -20,6 +20,7 @@ func registerRoutes(e *echo.Echo, s *Server) {
 	userGroup.DELETE("/favorite/:adID", s.deleteUserFavoriteAd)
 	userGroup.GET("/favorite", s.getUserFavoriteAds)
 	userGroup.GET("", s.getUserInfo)
+	userGroup.PUT("/watchlist-period/", s.updateUserWatchListPeriod)
 
 	priceGroup := e.Group("/price")
 	priceGroup.GET("/:adID/all", s.getAdsAllPrices)
