@@ -3,7 +3,6 @@ package divar
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/helpers"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/structs"
 	"github.com/QBC8-Team7/MagicCrawler/internal/repositories"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 )
 
 const ARCHIVE_PAGE = "archive"
@@ -30,22 +30,20 @@ func (c Crawler) GetBaseUrl() string {
 	return "https://divar.ir"
 }
 
-func (c Crawler) CrawlArchivePage(link string, wg *sync.WaitGroup, timeoutCh <-chan time.Time, statusIsPicked bool) {
+func (c Crawler) CreateCrawlJobArchivePageLink(link string) repositories.RepoResult {
+	return c.Repository.CreateCrawlJobArchivePageLink(link, GetSourceName())
+}
+
+func (c Crawler) CrawlArchivePage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh <-chan time.Time) {
 	defer wg.Done()
 
-	result := c.Repository.CreateCrawlJobArchivePageLink(link, statusIsPicked, GetSourceName())
-	if result.Err != nil {
-		fmt.Println(result.Err)
+	_, err := c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_PICKED)
+	if err != nil {
+		fmt.Println(err)
 		return
 	}
 
-	if result.Exist {
-		return
-	}
-
-	job := result.Job
-
-	htmlContent, err := helpers.GetHtml(link)
+	htmlContent, err := helpers.GetHtml(job.Url)
 	if err != nil {
 		// TODO - log here
 		fmt.Println(err)
@@ -67,7 +65,8 @@ func (c Crawler) CrawlArchivePage(link string, wg *sync.WaitGroup, timeoutCh <-c
 	}
 
 	if len(links) > 0 {
-		nextLink, err := getNextPageLink(link)
+		fmt.Println("links count:", len(links))
+		nextLink, err := helpers.GetNextPageLink(job.Url)
 		if err != nil {
 			fmt.Println(err)
 			// TODO - error handling
@@ -89,7 +88,8 @@ func (c Crawler) CrawlArchivePage(link string, wg *sync.WaitGroup, timeoutCh <-c
 			return
 		}
 
-		nextLinkResult := c.Repository.CreateCrawlJobArchivePageLink(nextLink, false, GetSourceName())
+		nextLinkResult := c.Repository.CreateCrawlJobArchivePageLink(nextLink, GetSourceName())
+		fmt.Println("next link:", nextLink)
 		if nextLinkResult.Err != nil {
 			// TODO - log here
 			fmt.Println(nextLinkResult.Err)
@@ -99,35 +99,11 @@ func (c Crawler) CrawlArchivePage(link string, wg *sync.WaitGroup, timeoutCh <-c
 			c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
 			return
 		}
+
+		wg.Add(len(links) + 1)
 	}
 
 	c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
-}
-
-func getNextPageLink(link string) (string, error) {
-	u, err := url.Parse(link)
-	if err != nil {
-		return "", err
-	}
-
-	query := u.Query()
-	pageStr := query.Get("page")
-
-	page := 1
-	if pageStr == "" {
-		pageInt, err := strconv.Atoi(pageStr)
-		if err != nil || pageInt <= 1 {
-			page = 2
-		} else {
-			page = pageInt + 1
-		}
-	} else {
-		page++
-	}
-
-	query.Set("page", strconv.Itoa(page))
-	u.RawQuery = query.Encode()
-	return u.String(), nil
 }
 
 func getSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
@@ -159,8 +135,13 @@ func getSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
 	return links, nil
 }
 
-func (c Crawler) CrawlItemPage(link string) (structs.CrawledData, error) {
-	htmlContent, err := helpers.GetHtml(link)
+func (c Crawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh <-chan time.Time) (structs.CrawledData, error) {
+	defer wg.Done()
+	fmt.Println("crawl item page", job.ID)
+	c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
+	return structs.CrawledData{}, nil
+
+	htmlContent, err := helpers.GetHtml(job.Url)
 	if err != nil {
 		return structs.CrawledData{}, err
 	}
@@ -183,6 +164,7 @@ func (c Crawler) CrawlItemPage(link string) (structs.CrawledData, error) {
 		return structs.CrawledData{}, err
 	}
 
+	// insert data to db
 	return crawledData, nil
 }
 

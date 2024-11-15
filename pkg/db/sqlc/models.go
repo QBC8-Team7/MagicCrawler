@@ -177,8 +177,8 @@ type CrawlJob struct {
 	ID                  int64     `json:"id"`
 	Url                 string    `json:"url"`
 	SourceName          string    `json:"source_name"`
-	PageType            *string   `json:"page_type"`
-	Status              *string   `json:"status"`
+	PageType            string    `json:"page_type"`
+	Status              string    `json:"status"`
 	ConsumedTimeSeconds *float64  `json:"consumed_time_seconds"`
 	CpuUsage            *float64  `json:"cpu_usage"`
 	RamUsage            *float64  `json:"ram_usage"`

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -63,12 +64,35 @@ func main() {
 
 	for _, seed := range seeds {
 		crawlerVar = crawler.NewCrawler(seed["source"], crawlJobRepository)
+		repoResult := crawlerVar.CreateCrawlJobArchivePageLink(seed["link"])
+		if repoResult.Err != nil || repoResult.Exist {
+			continue
+		}
+
 		wg.Add(1)
-		go crawlerVar.CrawlArchivePage(seed["link"], &wg, timeoutCh, true)
-		time.Sleep(time.Millisecond * 500)
 	}
 
-	// RUN WORKER POOL HERE
+	go func() {
+		// TODO - implement worker pool here
+		for {
+			fmt.Println("start worker")
+			crawlJob, err := crawlJobRepository.GetFirstWaitingCrawlJob()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			workerCrawler := crawler.NewCrawler(crawlJob.SourceName, crawlJobRepository)
+			// TODO - you should move divar constant
+			if crawlJob.PageType == divar.ARCHIVE_PAGE {
+				workerCrawler.CrawlArchivePage(crawlJob, &wg, timeoutCh)
+			} else {
+				workerCrawler.CrawlItemPage(crawlJob, &wg, timeoutCh)
+			}
+
+			time.Sleep(time.Millisecond * 200)
+		}
+	}()
 
 	go func() {
 		wg.Wait()

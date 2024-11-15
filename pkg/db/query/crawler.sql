@@ -28,3 +28,8 @@ UPDATE crawl_jobs
 SET status = sqlc.arg('status') 
 WHERE id = sqlc.arg('jobID')
 RETURNING id;
+
+-- name: GetFirstCrawlJobByStatus :one
+SELECT * FROM crawl_jobs
+WHERE status = sqlc.arg('status') 
+LIMIT 1;

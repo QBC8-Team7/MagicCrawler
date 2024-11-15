@@ -8,11 +8,13 @@ import (
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/sheypoor"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/structs"
 	"github.com/QBC8-Team7/MagicCrawler/internal/repositories"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 )
 
 type Crawler interface {
-	CrawlArchivePage(link string, wg *sync.WaitGroup, timeoutCh <-chan time.Time, statusIsPicked bool)
-	CrawlItemPage(link string) (structs.CrawledData, error)
+	CreateCrawlJobArchivePageLink(link string) repositories.RepoResult
+	CrawlArchivePage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh <-chan time.Time)
+	CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup, timeoutCh <-chan time.Time) (structs.CrawledData, error)
 	GetBaseUrl() string
 }
 

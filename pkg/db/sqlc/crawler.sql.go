@@ -38,10 +38,10 @@ RETURNING id, url, source_name, page_type, status, consumed_time_seconds, cpu_us
 `
 
 type CreateCrawlJobParams struct {
-	Url        string  `json:"url"`
-	SourceName string  `json:"source_name"`
-	PageType   *string `json:"page_type"`
-	Status     *string `json:"status"`
+	Url        string `json:"url"`
+	SourceName string `json:"source_name"`
+	PageType   string `json:"page_type"`
+	Status     string `json:"status"`
 }
 
 // Insert a new crawl job
@@ -68,6 +68,30 @@ func (q *Queries) CreateCrawlJob(ctx context.Context, arg CreateCrawlJobParams) 
 	return i, err
 }
 
+const getFirstCrawlJobByStatus = `-- name: GetFirstCrawlJobByStatus :one
+SELECT id, url, source_name, page_type, status, consumed_time_seconds, cpu_usage, ram_usage, created_at, updated_at FROM crawl_jobs
+WHERE status = $1 
+LIMIT 1
+`
+
+func (q *Queries) GetFirstCrawlJobByStatus(ctx context.Context, status string) (CrawlJob, error) {
+	row := q.db.QueryRow(ctx, getFirstCrawlJobByStatus, status)
+	var i CrawlJob
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.SourceName,
+		&i.PageType,
+		&i.Status,
+		&i.ConsumedTimeSeconds,
+		&i.CpuUsage,
+		&i.RamUsage,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getFirstMatchingCrawlJob = `-- name: GetFirstMatchingCrawlJob :one
 SELECT id, url, source_name, page_type, status, consumed_time_seconds, cpu_usage, ram_usage, created_at, updated_at FROM crawl_jobs
 WHERE url = $1
@@ -76,8 +100,8 @@ LIMIT 1
 `
 
 type GetFirstMatchingCrawlJobParams struct {
-	Url      string  `json:"url"`
-	Statuses *string `json:"statuses"`
+	Url      string `json:"url"`
+	Statuses string `json:"statuses"`
 }
 
 // url: text
@@ -108,8 +132,8 @@ RETURNING id
 `
 
 type UpdateCrawlJobStatusParams struct {
-	Status *string `json:"status"`
-	JobID  int64   `json:"jobID"`
+	Status string `json:"status"`
+	JobID  int64  `json:"jobID"`
 }
 
 func (q *Queries) UpdateCrawlJobStatus(ctx context.Context, arg UpdateCrawlJobStatusParams) (int64, error) {

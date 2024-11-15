@@ -42,13 +42,8 @@ func (repo CrawlJobRepository) CreateCrawlJobForSinglePageLinks(links []string, 
 	return errors
 }
 
-func (repo CrawlJobRepository) CreateCrawlJobArchivePageLink(link string, picked bool, sourceName string) RepoResult {
-	status := CRAWLJOB_STATUS_WAITING
-	if picked {
-		status = CRAWLJOB_STATUS_PICKED
-	}
-
-	return repo.createCrawlJob(link, CRAWLJOB_TYPE_ARCHIVE, status, sourceName)
+func (repo CrawlJobRepository) CreateCrawlJobArchivePageLink(link string, sourceName string) RepoResult {
+	return repo.createCrawlJob(link, CRAWLJOB_TYPE_ARCHIVE, CRAWLJOB_STATUS_WAITING, sourceName)
 }
 
 func (repo CrawlJobRepository) createCrawlJob(link string, pageType string, status string, sourceName string) RepoResult {
@@ -80,8 +75,8 @@ func (repo CrawlJobRepository) createCrawlJob(link string, pageType string, stat
 	createCrawlJobParams := sqlc.CreateCrawlJobParams{
 		Url:        link,
 		SourceName: sourceName,
-		PageType:   &pageType,
-		Status:     &status,
+		PageType:   pageType,
+		Status:     status,
 	}
 
 	job, err := repo.Queries.CreateCrawlJob(ctx, createCrawlJobParams)
@@ -103,9 +98,17 @@ func (cjr CrawlJobRepository) UpdateCrawlJobStatus(jobID int64, newStatus string
 	defer cancel()
 
 	params := sqlc.UpdateCrawlJobStatusParams{
-		Status: &newStatus,
+		Status: newStatus,
 		JobID:  jobID,
 	}
 
 	return cjr.Queries.UpdateCrawlJobStatus(ctx, params)
+}
+
+func (cjr CrawlJobRepository) GetFirstWaitingCrawlJob() (sqlc.CrawlJob, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	status := CRAWLJOB_STATUS_WAITING
+	return cjr.Queries.GetFirstCrawlJobByStatus(ctx, status)
 }
