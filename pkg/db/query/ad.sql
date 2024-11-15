@@ -50,28 +50,27 @@ WHERE id = sqlc.narg('id');
 -- name: GetAllAds :many
 SELECT *
 FROM ad
-ORDER BY CASE
-             WHEN sqlc.narg('order_by') = 'published_at' THEN published_at
-             WHEN sqlc.narg('order_by') = 'updated_at' THEN updated_at
-             WHEN sqlc.narg('order_by') = 'created_at' THEN created_at
-             WHEN sqlc.narg('order_by') = 'year' THEN year
-             ELSE id -- Default to ordering by id if no valid order_by is provided
-             END
-        DESC
+ORDER BY id DESC
 LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
+
+-- Get ads based on list of IDs
+-- name: GetAdsByIds :many
+SELECT *
+FROM ad
+WHERE id = ANY (sqlc.narg('ad_ids')::bigint[])
+ORDER BY created_at DESC;
 
 -- Comprehensive ad search with all attribute filters, including ranges and additional fields
 -- name: FilterAds :many
 SELECT *
 FROM ad
 WHERE (publisher_id = coalesce(sqlc.narg('publisher_id'), publisher_id))
-  AND (updated_at BETWEEN coalesce(sqlc.narg('min_updated_at'), updated_at) AND coalesce(sqlc.narg('max_updated_at'), updated_at))
   AND (published_at BETWEEN coalesce(sqlc.narg('min_published_at'), published_at) AND coalesce(sqlc.narg('max_published_at'), published_at))
-  AND (category = coalesce(sqlc.narg('category'), category))
-  AND (author = coalesce(sqlc.narg('author'), author))
+  AND (category::TEXT = coalesce(sqlc.narg('category')::TEXT, category::TEXT))
+  AND (author like coalesce(sqlc.narg('author'), author))
   AND (city = coalesce(sqlc.narg('city'), city))
   AND (neighborhood = coalesce(sqlc.narg('neighborhood'), neighborhood))
-  AND (house_type = coalesce(sqlc.narg('house_type'), house_type))
+  AND (house_type::TEXT = coalesce(sqlc.narg('house_type')::TEXT, house_type::TEXT))
   AND (meterage BETWEEN coalesce(sqlc.narg('min_meterage'), meterage) AND coalesce(sqlc.narg('max_meterage'), meterage))
   AND (rooms_count BETWEEN coalesce(sqlc.narg('min_rooms'), rooms_count) AND coalesce(sqlc.narg('max_rooms'), rooms_count))
   AND (year BETWEEN coalesce(sqlc.narg('min_year'), year) AND coalesce(sqlc.narg('max_year'), year))
@@ -80,8 +79,17 @@ WHERE (publisher_id = coalesce(sqlc.narg('publisher_id'), publisher_id))
   AND (has_warehouse = coalesce(sqlc.narg('has_warehouse'), has_warehouse))
   AND (has_elevator = coalesce(sqlc.narg('has_elevator'), has_elevator))
   AND (has_parking = coalesce(sqlc.narg('has_parking'), has_parking))
-  AND (lat BETWEEN coalesce(sqlc.narg('min_lat'), lat) AND coalesce(sqlc.narg('max_lat'), lat))
-  AND (lng BETWEEN coalesce(sqlc.narg('min_lng'), lng) AND coalesce(sqlc.narg('max_lng'), lng))
+  AND ((sqlc.narg('lat')::float IS NOT NULL AND
+        sqlc.narg('lng')::float IS NOT NULL AND
+        sqlc.narg('radius')::int IS NOT NULL AND
+        6371 * ACOS(
+                COS(RADIANS(sqlc.narg('lat'))) *
+                COS(RADIANS(lat)) *
+                COS(RADIANS(lng) - RADIANS(sqlc.narg('lng'))) +
+                SIN(RADIANS(sqlc.narg('lat'))) *
+                SIN(RADIANS(lat))
+               ) <= sqlc.narg('radius'))
+    OR (sqlc.narg('lat') IS NULL OR sqlc.narg('lng') IS NULL OR sqlc.narg('radius') IS NULL))
 ORDER BY created_at DESC
 LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
 
@@ -92,52 +100,23 @@ FROM ad
 WHERE publisher_id = sqlc.narg('publisher_id')
 ORDER BY created_at DESC;
 
--- Get ads with their latest total price within the specified range.
--- Handles cases with min_price and max_price individually or together.
--- name: FilterAdsByTotalPriceRange :many
-SELECT ad.*
-FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
-               FROM price
-               WHERE total_price >= COALESCE(sqlc.narg('min_price'), total_price)
-                 AND total_price <= COALESCE(sqlc.narg('max_price'), total_price)
-               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
-ORDER BY ad.created_at DESC
-LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
-
--- Get ads with their latest mortgage price within the specified range.
--- Handles cases with min_price and max_price individually or together.
--- name: FilterAdsByMortgagePriceRange :many
-SELECT ad.*
-FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, mortgage
-               FROM price
-               WHERE mortgage >= COALESCE(sqlc.narg('min_price'), mortgage)
-                 AND mortgage <= COALESCE(sqlc.narg('max_price'), mortgage)
-               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
-ORDER BY ad.created_at DESC
-LIMIT sqlc.narg('limit') OFFSET sqlc.narg('offset');
-
--- Filter ads based on list of IDs and price range
--- name: FilterAdsByIdsAndPriceRange :many
-SELECT ad.*
-FROM ad
-         JOIN (SELECT DISTINCT ON (ad_id) ad_id, total_price
-               FROM price
-               WHERE ad_id = ANY (sqlc.narg('ad_ids')::int[])
-                 AND total_price BETWEEN sqlc.narg('min_price') AND sqlc.narg('max_price')
-               ORDER BY ad_id, fetched_at DESC) latest_price ON latest_price.ad_id = ad.id
-ORDER BY ad.created_at DESC;
-
--- Get ads without associated price
--- name: GetAdsWithoutPrice :many
-SELECT ad.*
-FROM ad
-         LEFT JOIN price ON price.ad_id = ad.id
-WHERE price.id IS NULL;
 
 -- Get PublisherAdKey for one specific ad
 -- name: GetAdsPublisherByAdKey :one
 SELECT ad.publisher_ad_key
 FROM ad
 WHERE ad.id = sqlc.narg('ad_key');
+
+-- name: GetAdByPublisherAdKey :one
+SELECT ad.id
+FROM ad
+WHERE ad.publisher_ad_key = sqlc.arg('ad_key');
+
+-- Get Ad by its ID
+-- name: GetAdByID :one
+SELECT ad.*
+FROM ad
+WHERE ad.id = sqlc.arg('id');
+
+-- name: CountAds :one
+SELECT COUNT(*) FROM ad;

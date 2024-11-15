@@ -50,7 +50,7 @@ func main() {
 
 	// Set crawl duration to 10 minutes
 	// TODO - use context if you can
-	timeout := time.Duration(5) * time.Second
+	timeout := time.Duration(100) * time.Second
 	timeoutCh := time.After(timeout)
 
 	// TODO - better to use buffered channel

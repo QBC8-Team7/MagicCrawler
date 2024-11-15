@@ -47,8 +47,6 @@ func (q *Queries) CreateUserAd(ctx context.Context, arg CreateUserAdParams) erro
 }
 
 const createUserFavoriteAd = `-- name: CreateUserFavoriteAd :exec
-
-
 INSERT INTO favorite_ads (user_id, ad_id)
 VALUES ($1, $2)
 ON CONFLICT DO NOTHING
@@ -59,7 +57,6 @@ type CreateUserFavoriteAdParams struct {
 	AdID   *int64  `json:"ad_id"`
 }
 
-// Avoid duplicate entries
 // Assign an ad to a user as creator of that ad
 func (q *Queries) CreateUserFavoriteAd(ctx context.Context, arg CreateUserFavoriteAdParams) error {
 	_, err := q.db.Exec(ctx, createUserFavoriteAd, arg.UserID, arg.AdID)
@@ -75,6 +72,24 @@ WHERE tg_id = $1
 // Delete a user by Telegram ID
 func (q *Queries) DeleteUser(ctx context.Context, tgID string) error {
 	_, err := q.db.Exec(ctx, deleteUser, tgID)
+	return err
+}
+
+const deleteUserFavoriteAd = `-- name: DeleteUserFavoriteAd :exec
+DELETE
+FROM favorite_ads
+WHERE user_id = $1
+  AND ad_id = $2
+`
+
+type DeleteUserFavoriteAdParams struct {
+	UserID *string `json:"user_id"`
+	AdID   *int64  `json:"ad_id"`
+}
+
+// Delete an ad from user's favorite list
+func (q *Queries) DeleteUserFavoriteAd(ctx context.Context, arg DeleteUserFavoriteAdParams) error {
+	_, err := q.db.Exec(ctx, deleteUserFavoriteAd, arg.UserID, arg.AdID)
 	return err
 }
 
@@ -111,6 +126,35 @@ func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]Use
 	return items, nil
 }
 
+const getUserAds = `-- name: GetUserAds :many
+
+SELECT ad_id
+FROM user_ads
+WHERE user_id = $1
+`
+
+// Avoid duplicate entries
+// Get any ad that's created by user
+func (q *Queries) GetUserAds(ctx context.Context, userID *string) ([]*int64, error) {
+	rows, err := q.db.Query(ctx, getUserAds, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*int64
+	for rows.Next() {
+		var ad_id *int64
+		if err := rows.Scan(&ad_id); err != nil {
+			return nil, err
+		}
+		items = append(items, ad_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserByTGID = `-- name: GetUserByTGID :one
 SELECT tg_id, role, watchlist_period
 FROM "user"
@@ -124,6 +168,35 @@ func (q *Queries) GetUserByTGID(ctx context.Context, tgID string) (User, error) 
 	var i User
 	err := row.Scan(&i.TgID, &i.Role, &i.WatchlistPeriod)
 	return i, err
+}
+
+const getUserFavoriteAds = `-- name: GetUserFavoriteAds :many
+
+SELECT ad_id
+FROM favorite_ads
+WHERE user_id = $1
+`
+
+// Avoid duplicate entries
+// Get all user's favorite ads
+func (q *Queries) GetUserFavoriteAds(ctx context.Context, userID *string) ([]*int64, error) {
+	rows, err := q.db.Query(ctx, getUserFavoriteAds, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*int64
+	for rows.Next() {
+		var ad_id *int64
+		if err := rows.Scan(&ad_id); err != nil {
+			return nil, err
+		}
+		items = append(items, ad_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateUser = `-- name: UpdateUser :one

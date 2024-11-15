@@ -39,6 +39,8 @@ func (dc DivarCrawler) CreateCrawlJobArchivePageLink(link string) repositories.R
 }
 
 func (dc DivarCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
+	fmt.Println("Get links from archive page")
+
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return []string{}, fmt.Errorf("error parsing html: %s", err)
@@ -69,34 +71,44 @@ func (dc DivarCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]
 
 func (dc DivarCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (structs.CrawledData, error) {
 	defer wg.Done()
-	fmt.Println("crawl item page", job.ID)
-	dc.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
-	return structs.CrawledData{}, nil
+	fmt.Println("crawl single page:", job.ID)
 
 	htmlContent, err := helpers.GetHtml(job.Url)
 	if err != nil {
 		return structs.CrawledData{}, err
 	}
 
-	crawledData := structs.CrawledData{}
+	crawledData := structs.CrawledData{
+		SourceName: GetSourceName(),
+	}
+
+	var errors []error
 
 	// fill general data
 	err = dc.catchGeneralData(htmlContent, &crawledData)
 	if err != nil {
-		return structs.CrawledData{}, err
+		errors = append(errors, err)
 	}
 
 	err = dc.catchPublishedAt(htmlContent, &crawledData)
 	if err != nil {
-		return structs.CrawledData{}, err
+		errors = append(errors, err)
 	}
 
 	err = dc.catchPricesAndSomeOtherData(htmlContent, &crawledData)
 	if err != nil {
-		return structs.CrawledData{}, err
+		errors = append(errors, err)
 	}
 
-	// insert data to db
+	if len(errors) > 0 {
+		dc.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		return structs.CrawledData{}, errors[0]
+	}
+
+	dc.Repository.CreateOrUpdateAd(crawledData)
+
+	dc.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
+
 	return crawledData, nil
 }
 

@@ -40,9 +40,29 @@ VALUES (sqlc.arg('user_id'), sqlc.arg('ad_id'))
 ON CONFLICT DO NOTHING;
 -- Avoid duplicate entries
 
+-- Get any ad that's created by user
+-- name: GetUserAds :many
+SELECT ad_id
+FROM user_ads
+WHERE user_id = sqlc.arg('user_id');
+
 
 -- Assign an ad to a user as creator of that ad
 -- name: CreateUserFavoriteAd :exec
 INSERT INTO favorite_ads (user_id, ad_id)
 VALUES (sqlc.arg('user_id'), sqlc.arg('ad_id'))
-ON CONFLICT DO NOTHING; -- Avoid duplicate entries
+ON CONFLICT DO NOTHING;
+-- Avoid duplicate entries
+
+-- Get all user's favorite ads
+-- name: GetUserFavoriteAds :many
+SELECT ad_id
+FROM favorite_ads
+WHERE user_id = sqlc.arg('user_id');
+
+-- Delete an ad from user's favorite list
+-- name: DeleteUserFavoriteAd :exec
+DELETE
+FROM favorite_ads
+WHERE user_id = sqlc.arg('user_id')
+  AND ad_id = sqlc.arg('ad_id');

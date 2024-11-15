@@ -24,4 +24,5 @@ type CrawledData struct {
 	PublishedAt      string
 	City             string
 	Neighborhood     string
+	SourceName       string
 }
