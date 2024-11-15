@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+
 	"github.com/QBC8-Team7/MagicCrawler/internal/middleware"
 	"github.com/labstack/echo/v4"
 	echoMiddlewares "github.com/labstack/echo/v4/middleware"
@@ -23,8 +24,10 @@ type Server struct {
 func NewServer(dbCtx context.Context, cfg *config.Config, db *sqlc.Queries) (*Server, error) {
 	appLogger := logger.NewAppLogger(cfg)
 
-	appLogger.InitLogger(cfg.Logger.Path)
+	appLogger.InitLogger(cfg.Logger.Path, cfg.Logger.SysPath)
 	appLogger.Infof("AppVersion: %s, LogLevel: %s, Mode: %s, SSL: %s", cfg.Server.AppVersion, cfg.Logger.Level, cfg.Server.Mode, "")
+
+	appLogger.StartSystemMetricsLogging()
 
 	e := echo.New()
 
