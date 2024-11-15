@@ -154,14 +154,26 @@ func (s *Server) deleteAdByID(c echo.Context) error {
 
 func (s *Server) getAdById(c echo.Context) error {
 	adID, err := strconv.ParseInt(c.Param("adID"), 10, 64)
+
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
 			Message: "invalid ad ID",
 		})
 	}
+	userID, ok := c.Get("UserID").(string)
+	if !ok {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "invalid ad ID",
+		})
+	}
+	params := sqlc.GetAdByIDParams{
+		ID:     adID,
+		UserID: userID,
+	}
 
-	ad, err := s.db.GetAdByID(s.dbContext, adID)
+	ad, err := s.db.GetAdByID(s.dbContext, params)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, jsonResponse{
 			Success: false,
@@ -460,7 +472,19 @@ func (s *Server) getAdPictures(c echo.Context) error {
 		})
 	}
 
-	_, err = s.db.GetAdByID(s.dbContext, adID)
+	userID, ok := c.Get("UserID").(string)
+	if !ok {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "invalid ad ID",
+		})
+	}
+	params := sqlc.GetAdByIDParams{
+		ID:     adID,
+		UserID: userID,
+	}
+
+	_, err = s.db.GetAdByID(s.dbContext, params)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, jsonResponse{
 			Success: false,
@@ -526,8 +550,20 @@ func (s *Server) createAdPicture(c echo.Context) error {
 			Message: "invalid params",
 		})
 	}
+	userID, ok := c.Get("UserID").(string)
+	if !ok {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "invalid ad ID",
+		})
+	}
 
-	_, err := s.db.GetAdByID(s.dbContext, *createPicParam.AdID)
+	params := sqlc.GetAdByIDParams{
+		ID:     *createPicParam.AdID,
+		UserID: userID,
+	}
+
+	_, err := s.db.GetAdByID(s.dbContext, params)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, jsonResponse{
 			Success: false,
@@ -619,7 +655,12 @@ func (s *Server) createUserFavoriteAd(c echo.Context) error {
 		}
 	}
 
-	_, err = s.db.GetAdByID(s.dbContext, adID)
+	params := sqlc.GetAdByIDParams{
+		ID:     adID,
+		UserID: userID,
+	}
+
+	_, err = s.db.GetAdByID(s.dbContext, params)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, jsonResponse{
 			Success: false,
