@@ -188,7 +188,7 @@ func (r AdRepository) makeCreateAdParams(ctx context.Context, crawledData struct
 
 	publishedAt, err := helpers.PersianToMiladi(crawledData.PublishedAt)
 	if err == nil {
-		params.PublishedAt = publishedAt
+		params.PublishedAt = &publishedAt
 	}
 
 	if latitude != 0 && longitude != 0 {
