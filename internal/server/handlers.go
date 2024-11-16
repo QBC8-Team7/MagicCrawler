@@ -17,6 +17,12 @@ type jsonResponse struct {
 	Message any  `json:"message"`
 }
 
+type jsonListResponse struct {
+	Success bool  `json:"success"`
+	Message any   `json:"message"`
+	Total   int64 `json:"total"`
+}
+
 func (s *Server) checkUserAccessToAd(userRole, userID string, adID int64) (bool, error) {
 	// Check if they have an admin role
 	if userRole == string(sqlc.UserRoleAdmin) || userRole == string(sqlc.UserRoleSuperAdmin) {
@@ -48,12 +54,12 @@ func healthCheck(c echo.Context) error {
 
 // Ad Group Handlers
 func (s *Server) createAd(c echo.Context) error {
-	type createAdWithURLParams struct {
+	type createAdWithPictureParam struct {
 		sqlc.CreateAdParams
 		PictureURL string `json:"pic_url"`
 	}
 
-	adParam := new(createAdWithURLParams)
+	adParam := new(createAdWithPictureParam)
 	if err := c.Bind(adParam); err != nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
@@ -249,13 +255,22 @@ func (s *Server) getAllAds(c echo.Context) error {
 		})
 	}
 
+	allAdsCount, err := s.db.CountAds(s.dbContext)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while counting all ads: %v", err),
+		})
+	}
+
 	if len(ads) == 0 {
 		ads = []sqlc.Ad{}
 	}
 
-	return c.JSON(http.StatusOK, jsonResponse{
+	return c.JSON(http.StatusOK, jsonListResponse{
 		Success: true,
 		Message: ads,
+		Total:   allAdsCount,
 	})
 }
 
@@ -291,6 +306,18 @@ func (s *Server) searchAds(c echo.Context) error {
 		})
 	}
 
+	infiniteLimit, zeroOffset := int32(1000), int32(0)
+	filterParam.Limit, filterParam.Offset = &infiniteLimit, &zeroOffset
+
+	allDesiredAds, err := s.db.FilterAds(s.dbContext, *filterParam)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("error while searching ads: %v", err),
+		})
+	}
+	total := int64(len(allDesiredAds))
+
 	if len(ads) == 0 {
 		ads = []sqlc.Ad{}
 	}
@@ -310,9 +337,10 @@ func (s *Server) searchAds(c echo.Context) error {
 	}
 
 	if minPrice == nil && maxPrice == nil {
-		return c.JSON(http.StatusOK, jsonResponse{
+		return c.JSON(http.StatusOK, jsonListResponse{
 			Success: true,
 			Message: ads,
+			Total:   total,
 		})
 	}
 
@@ -444,9 +472,10 @@ func (s *Server) getPopularAds(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, jsonResponse{
+	return c.JSON(http.StatusOK, jsonListResponse{
 		Success: true,
 		Message: popularAds,
+		Total:   int64(limit),
 	})
 }
 
