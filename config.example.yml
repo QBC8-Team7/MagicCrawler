@@ -18,8 +18,9 @@ logger:
   level:
   encoding:
   path:
+  sysPath:
 redis:
-  host:
-  port:
+  host: localhost
+  port: 6379
   password:
-  db:
+  db: test

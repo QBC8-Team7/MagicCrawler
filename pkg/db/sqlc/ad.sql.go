@@ -261,15 +261,55 @@ func (q *Queries) FilterAds(ctx context.Context, arg FilterAdsParams) ([]Ad, err
 }
 
 const getAdByID = `-- name: GetAdByID :one
-SELECT ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng
+SELECT
+    ad.id, ad.publisher_ad_key, ad.publisher_id, ad.created_at, ad.updated_at, ad.published_at, ad.category, ad.author, ad.url, ad.title, ad.description, ad.city, ad.neighborhood, ad.house_type, ad.meterage, ad.rooms_count, ad.year, ad.floor, ad.total_floors, ad.has_warehouse, ad.has_elevator, ad.has_parking, ad.lat, ad.lng,
+    CASE
+        WHEN fa.ad_id IS NOT NULL THEN true
+        ELSE false
+        END AS favorite_status
 FROM ad
-WHERE ad.id = $1
+         LEFT JOIN public.favorite_ads fa
+                   ON ad.id = fa.ad_id AND fa.user_id = $1
+WHERE ad.id = $2
 `
 
+type GetAdByIDParams struct {
+	UserID string `json:"user_id"`
+	ID     int64  `json:"id"`
+}
+
+type GetAdByIDRow struct {
+	ID             int64      `json:"id"`
+	PublisherAdKey string     `json:"publisher_ad_key"`
+	PublisherID    *int32     `json:"publisher_id"`
+	CreatedAt      *time.Time `json:"created_at"`
+	UpdatedAt      *time.Time `json:"updated_at"`
+	PublishedAt    *time.Time `json:"published_at"`
+	Category       string     `json:"category"`
+	Author         *string    `json:"author"`
+	Url            *string    `json:"url"`
+	Title          *string    `json:"title"`
+	Description    *string    `json:"description"`
+	City           *string    `json:"city"`
+	Neighborhood   *string    `json:"neighborhood"`
+	HouseType      string     `json:"house_type"`
+	Meterage       *int32     `json:"meterage"`
+	RoomsCount     *int32     `json:"rooms_count"`
+	Year           *int32     `json:"year"`
+	Floor          *int32     `json:"floor"`
+	TotalFloors    *int32     `json:"total_floors"`
+	HasWarehouse   *bool      `json:"has_warehouse"`
+	HasElevator    *bool      `json:"has_elevator"`
+	HasParking     *bool      `json:"has_parking"`
+	Lat            *float64   `json:"lat"`
+	Lng            *float64   `json:"lng"`
+	FavoriteStatus bool       `json:"favorite_status"`
+}
+
 // Get Ad by its ID
-func (q *Queries) GetAdByID(ctx context.Context, id int64) (Ad, error) {
-	row := q.db.QueryRow(ctx, getAdByID, id)
-	var i Ad
+func (q *Queries) GetAdByID(ctx context.Context, arg GetAdByIDParams) (GetAdByIDRow, error) {
+	row := q.db.QueryRow(ctx, getAdByID, arg.UserID, arg.ID)
+	var i GetAdByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.PublisherAdKey,
@@ -295,6 +335,7 @@ func (q *Queries) GetAdByID(ctx context.Context, id int64) (Ad, error) {
 		&i.HasParking,
 		&i.Lat,
 		&i.Lng,
+		&i.FavoriteStatus,
 	)
 	return i, err
 }

@@ -114,9 +114,17 @@ WHERE ad.publisher_ad_key = sqlc.arg('ad_key');
 
 -- Get Ad by its ID
 -- name: GetAdByID :one
-SELECT ad.*
+SELECT
+    ad.*,
+    CASE
+        WHEN fa.ad_id IS NOT NULL THEN true
+        ELSE false
+        END AS favorite_status
 FROM ad
+         LEFT JOIN public.favorite_ads fa
+                   ON ad.id = fa.ad_id AND fa.user_id = sqlc.arg('user_id')
 WHERE ad.id = sqlc.arg('id');
+
 
 -- name: CountAds :one
 SELECT COUNT(*) FROM ad;

@@ -11,7 +11,7 @@ import (
 
 // Logger methods interface
 type Logger interface {
-	InitLogger()
+	InitLogger(appLogFilePath, sysLogFilePath string)
 	Debug(args ...interface{})
 	Debugf(template string, args ...interface{})
 	Info(args ...interface{})
@@ -24,12 +24,15 @@ type Logger interface {
 	DPanicf(template string, args ...interface{})
 	Fatal(args ...interface{})
 	Fatalf(template string, args ...interface{})
+	LogSystemInfo(args ...interface{})
+	LogSystemInfof(template string, args ...interface{})
 }
 
 // Logger
 type AppLogger struct {
 	cfg         *config.Config
 	sugarLogger *zap.SugaredLogger
+	sysLogger   *zap.SugaredLogger // Separate logger for system metrics
 }
 
 // App Logger constructor
@@ -37,7 +40,7 @@ func NewAppLogger(cfg *config.Config) *AppLogger {
 	return &AppLogger{cfg: cfg}
 }
 
-// For mapping config logger to app logger levels
+// Mapping config logger levels to zap levels
 var loggerLevelMap = map[string]zapcore.Level{
 	"debug":  zapcore.DebugLevel,
 	"info":   zapcore.InfoLevel,
@@ -49,47 +52,57 @@ var loggerLevelMap = map[string]zapcore.Level{
 }
 
 func (l *AppLogger) getLoggerLevel(cfg *config.Config) zapcore.Level {
-	level, exist := loggerLevelMap[cfg.Logger.Level]
-	if !exist {
+	level, exists := loggerLevelMap[cfg.Logger.Level]
+	if !exists {
 		return zapcore.DebugLevel
 	}
-
 	return level
 }
 
-// InitLogger will init logger with config
-func (l *AppLogger) InitLogger(filePath string) {
+// InitLogger initializes the main and system loggers
+func (l *AppLogger) InitLogger(appLogFilePath, sysLogFilePath string) {
 	logLevel := l.getLoggerLevel(l.cfg)
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+
+	appFile, err := os.OpenFile(appLogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatal("cant open the file")
+		log.Fatal("Cannot open application log file:", err)
 	}
+	appLogWriter := zapcore.AddSync(appFile)
 
-	logWriter := zapcore.AddSync(file)
-
-	var encoderCfg zapcore.EncoderConfig
-	if l.cfg.Server.Mode == config.Development {
-		encoderCfg = zap.NewDevelopmentEncoderConfig()
-	} else {
-		encoderCfg = zap.NewProductionEncoderConfig()
+	sysFile, err := os.OpenFile(sysLogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal("Cannot open system log file:", err)
 	}
+	sysLogWriter := zapcore.AddSync(sysFile)
 
-	var encoder zapcore.Encoder
+	encoderCfg := zap.NewProductionEncoderConfig()
 	encoderCfg.LevelKey = "LEVEL"
 	encoderCfg.CallerKey = "CALLER"
 	encoderCfg.TimeKey = "TIME"
 	encoderCfg.NameKey = "NAME"
 	encoderCfg.MessageKey = "MESSAGE"
-
-	encoder = zapcore.NewJSONEncoder(encoderCfg)
-
 	encoderCfg.EncodeTime = zapcore.ISO8601TimeEncoder
-	core := zapcore.NewCore(encoder, logWriter, zap.NewAtomicLevelAt(logLevel))
-	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 
-	l.sugarLogger = logger.Sugar()
+	appCore := zapcore.NewCore(
+		zapcore.NewJSONEncoder(encoderCfg),
+		appLogWriter,
+		zap.NewAtomicLevelAt(logLevel),
+	)
+
+	sysCore := zapcore.NewCore(
+		zapcore.NewJSONEncoder(encoderCfg),
+		sysLogWriter,
+		zap.NewAtomicLevelAt(zapcore.InfoLevel),
+	)
+
+	l.sugarLogger = zap.New(appCore, zap.AddCaller(), zap.AddCallerSkip(1)).Sugar()
+	l.sysLogger = zap.New(sysCore, zap.AddCaller(), zap.AddCallerSkip(1)).Sugar()
+
 	if err := l.sugarLogger.Sync(); err != nil {
-		l.sugarLogger.Error(err)
+		l.sugarLogger.Error("Failed to sync main logger:", err)
+	}
+	if err := l.sysLogger.Sync(); err != nil {
+		l.sysLogger.Error("Failed to sync system logger:", err)
 	}
 }
 
@@ -133,18 +146,18 @@ func (l *AppLogger) DPanicf(template string, args ...interface{}) {
 	l.sugarLogger.DPanicf(template, args...)
 }
 
-func (l *AppLogger) Panic(args ...interface{}) {
-	l.sugarLogger.Panic(args...)
-}
-
-func (l *AppLogger) Panicf(template string, args ...interface{}) {
-	l.sugarLogger.Panicf(template, args...)
-}
-
 func (l *AppLogger) Fatal(args ...interface{}) {
 	l.sugarLogger.Fatal(args...)
 }
 
 func (l *AppLogger) Fatalf(template string, args ...interface{}) {
 	l.sugarLogger.Fatalf(template, args...)
+}
+
+func (l *AppLogger) LogSystemInfo(args ...interface{}) {
+	l.sysLogger.Info(args...)
+}
+
+func (l *AppLogger) LogSystemInfof(template string, args ...interface{}) {
+	l.sysLogger.Infow(template, args...)
 }
