@@ -2,7 +2,9 @@ package server
 
 import (
 	"fmt"
+	myredis "github.com/QBC8-Team7/MagicCrawler/pkg/redis"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -13,6 +15,12 @@ import (
 type jsonResponse struct {
 	Success bool `json:"success"`
 	Message any  `json:"message"`
+}
+
+type jsonListResponse struct {
+	Success bool  `json:"success"`
+	Message any   `json:"message"`
+	Total   int64 `json:"total"`
 }
 
 func (s *Server) checkUserAccessToAd(userRole, userID string, adID int64) (bool, error) {
@@ -46,7 +54,12 @@ func healthCheck(c echo.Context) error {
 
 // Ad Group Handlers
 func (s *Server) createAd(c echo.Context) error {
-	adParam := new(sqlc.CreateAdParams)
+	type createAdWithPictureParam struct {
+		sqlc.CreateAdParams
+		PictureURL string `json:"pic_url"`
+	}
+
+	adParam := new(createAdWithPictureParam)
 	if err := c.Bind(adParam); err != nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
@@ -61,8 +74,7 @@ func (s *Server) createAd(c echo.Context) error {
 	adParam.PublishedAt = &now
 	adParam.Url = nil
 
-	fmt.Printf("%+v\n", adParam)
-	ad, err := s.db.CreateAd(s.dbContext, *adParam)
+	ad, err := s.db.CreateAd(s.dbContext, adParam.CreateAdParams)
 	if err != nil {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, jsonResponse{
@@ -91,6 +103,13 @@ func (s *Server) createAd(c echo.Context) error {
 			Message: fmt.Sprintf("internal server while assigning new ad to user: %v", err),
 		})
 	}
+
+	createPictureParam := sqlc.CreateAdPictureParams{
+		AdID: &ad.ID,
+		Url:  &adParam.PictureURL,
+	}
+
+	_, _ = s.db.CreateAdPicture(s.dbContext, createPictureParam)
 
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
@@ -153,7 +172,8 @@ func (s *Server) deleteAdByID(c echo.Context) error {
 }
 
 func (s *Server) getAdById(c echo.Context) error {
-	adID, err := strconv.ParseInt(c.Param("adID"), 10, 64)
+	adIDStr := c.Param("adID")
+	adID, err := strconv.ParseInt(adIDStr, 10, 64)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
@@ -167,6 +187,26 @@ func (s *Server) getAdById(c echo.Context) error {
 			Success: false,
 			Message: "ad not found",
 		})
+	}
+
+	countStr, err := s.redis.Get(s.dbContext, myredis.CollectionAdCount, adIDStr)
+
+	if err != nil {
+		err := s.redis.Set(s.dbContext, myredis.CollectionAdCount, adIDStr, "1")
+		if err != nil {
+			s.logger.Warnf("can not set counter for ad %s: %v", adIDStr, err)
+		} else {
+			s.logger.Infof("counter set for Ad %s: 1", adIDStr)
+		}
+	} else {
+		count, _ := strconv.Atoi(countStr)
+		count = count + 1
+		err := s.redis.Set(s.dbContext, myredis.CollectionAdCount, adIDStr, strconv.Itoa(count))
+		if err != nil {
+			s.logger.Warnf("can not increment counter for ad %s: %v", adIDStr, err)
+		} else {
+			s.logger.Infof("counter increment for Ad %s: %d", adIDStr, count)
+		}
 	}
 
 	return c.JSON(http.StatusOK, jsonResponse{
@@ -215,13 +255,22 @@ func (s *Server) getAllAds(c echo.Context) error {
 		})
 	}
 
+	allAdsCount, err := s.db.CountAds(s.dbContext)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while counting all ads: %v", err),
+		})
+	}
+
 	if len(ads) == 0 {
 		ads = []sqlc.Ad{}
 	}
 
-	return c.JSON(http.StatusOK, jsonResponse{
+	return c.JSON(http.StatusOK, jsonListResponse{
 		Success: true,
 		Message: ads,
+		Total:   allAdsCount,
 	})
 }
 
@@ -257,6 +306,18 @@ func (s *Server) searchAds(c echo.Context) error {
 		})
 	}
 
+	infiniteLimit, zeroOffset := int32(1000), int32(0)
+	filterParam.Limit, filterParam.Offset = &infiniteLimit, &zeroOffset
+
+	allDesiredAds, err := s.db.FilterAds(s.dbContext, *filterParam)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("error while searching ads: %v", err),
+		})
+	}
+	total := int64(len(allDesiredAds))
+
 	if len(ads) == 0 {
 		ads = []sqlc.Ad{}
 	}
@@ -276,9 +337,10 @@ func (s *Server) searchAds(c echo.Context) error {
 	}
 
 	if minPrice == nil && maxPrice == nil {
-		return c.JSON(http.StatusOK, jsonResponse{
+		return c.JSON(http.StatusOK, jsonListResponse{
 			Success: true,
 			Message: ads,
+			Total:   total,
 		})
 	}
 
@@ -341,6 +403,79 @@ func (s *Server) searchAds(c echo.Context) error {
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
 		Message: filteredAds,
+	})
+}
+
+func (s *Server) getPopularAds(c echo.Context) error {
+	limit, err := strconv.Atoi(c.QueryParam("limit"))
+	if err != nil {
+		if c.QueryParam("limit") != "" {
+			return c.JSON(http.StatusBadRequest, jsonResponse{
+				Success: false,
+				Message: fmt.Sprintf("invalid limit: %v", err),
+			})
+		}
+		limit = 5
+	}
+
+	adsPopularity, err := s.redis.GetAllFromCollection(s.dbContext, myredis.CollectionAdCount, 0)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("error fetching ads: %v", err),
+		})
+	}
+
+	type adPopularityPair struct {
+		ID         int64
+		Popularity int
+	}
+
+	var ads []adPopularityPair
+	for idStr, popStr := range adsPopularity {
+		id, err1 := strconv.ParseInt(idStr, 10, 64)
+		pop, err2 := strconv.Atoi(popStr)
+		if err1 == nil && err2 == nil {
+			ads = append(ads, adPopularityPair{ID: id, Popularity: pop})
+		}
+	}
+
+	sort.Slice(ads, func(i, j int) bool {
+		return ads[i].Popularity > ads[j].Popularity
+	})
+	if len(ads) > limit {
+		ads = ads[:limit]
+	}
+
+	adIDs := make([]int64, len(ads))
+	for i, ad := range ads {
+		adIDs[i] = ad.ID
+	}
+
+	dbAds, err := s.db.GetAdsByIds(s.dbContext, adIDs)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("error fetching ads from database: %v", err),
+		})
+	}
+
+	adMap := make(map[int64]sqlc.Ad, len(dbAds))
+	for _, ad := range dbAds {
+		adMap[ad.ID] = ad
+	}
+
+	popularAds := make([]sqlc.Ad, 0, len(ads))
+	for _, ad := range ads {
+		if dbAd, exists := adMap[ad.ID]; exists {
+			popularAds = append(popularAds, dbAd)
+		}
+	}
+
+	return c.JSON(http.StatusOK, jsonListResponse{
+		Success: true,
+		Message: popularAds,
+		Total:   int64(limit),
 	})
 }
 

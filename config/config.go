@@ -40,12 +40,20 @@ type Crawler struct {
 	CrawlTime uint
 }
 
+type Redis struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
+}
+
 type Config struct {
 	Server
 	Bot
 	Postgres
 	Crawler
 	Logger
+	Redis
 }
 
 func LoadConfig(configPath string) (*Config, error) {

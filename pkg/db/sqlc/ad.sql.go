@@ -10,6 +10,17 @@ import (
 	"time"
 )
 
+const countAds = `-- name: CountAds :one
+SELECT COUNT(*) FROM ad
+`
+
+func (q *Queries) CountAds(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAds)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAd = `-- name: CreateAd :one
 INSERT INTO ad (publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author,
                 url, title, description, city, neighborhood, house_type, meterage, rooms_count, year,
