@@ -104,7 +104,10 @@ func main() {
 				crawledData, err := workerCrawler.CrawlItemPage(crawlJob, &wg)
 				if err != nil {
 					fmt.Println("×××××× Error in crawling single page. jobID:", crawlJob.ID, err)
-					workerCrawler.GetRepository().UpdateCrawlJobStatus(crawlJob.ID, repositories.CRAWLJOB_STATUS_FAILED)
+					_, err := workerCrawler.GetRepository().UpdateCrawlJobStatus(crawlJob.ID, repositories.CRAWLJOB_STATUS_FAILED)
+					if err != nil {
+						fmt.Println(err)
+					}
 				} else {
 					err = workerCrawler.GetRepository().CreateOrUpdateAd(crawledData)
 					if err != nil {
