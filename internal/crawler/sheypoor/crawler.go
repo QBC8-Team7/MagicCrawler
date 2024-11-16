@@ -11,7 +11,7 @@ import (
 )
 
 type SheypoorCrawler struct {
-	Repository repositories.CrawlJobRepository
+	Repository repositories.CrawlerRepository
 }
 
 func GetSourceName() string {
@@ -26,7 +26,7 @@ func (sc SheypoorCrawler) GetBaseUrl() string {
 	return "https://sheypoor.com"
 }
 
-func (sc SheypoorCrawler) GetRepository() repositories.CrawlJobRepository {
+func (sc SheypoorCrawler) GetRepository() repositories.CrawlerRepository {
 	return sc.Repository
 }
 

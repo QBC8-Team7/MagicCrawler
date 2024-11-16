@@ -15,30 +15,30 @@ import (
 )
 
 type DivarCrawler struct {
-	Repository repositories.CrawlJobRepository
+	Repository repositories.CrawlerRepository
 }
 
 func GetSourceName() string {
 	return "divar"
 }
 
-func (dc DivarCrawler) GetSourceName() string {
+func (c DivarCrawler) GetSourceName() string {
 	return "divar"
 }
 
-func (dc DivarCrawler) GetBaseUrl() string {
+func (c DivarCrawler) GetBaseUrl() string {
 	return "https://divar.ir"
 }
 
-func (dc DivarCrawler) GetRepository() repositories.CrawlJobRepository {
-	return dc.Repository
+func (c DivarCrawler) GetRepository() repositories.CrawlerRepository {
+	return c.Repository
 }
 
-func (dc DivarCrawler) CreateCrawlJobArchivePageLink(link string) repositories.RepoResult {
-	return dc.Repository.CreateCrawlJobArchivePageLink(link, GetSourceName())
+func (c DivarCrawler) CreateCrawlJobArchivePageLink(link string) repositories.RepoResult {
+	return c.Repository.CreateCrawlJobArchivePageLink(link, GetSourceName())
 }
 
-func (dc DivarCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
+func (c DivarCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
 	fmt.Println("Get links from archive page")
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
@@ -69,9 +69,9 @@ func (dc DivarCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]
 	return links, nil
 }
 
-func (dc DivarCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (structs.CrawledData, error) {
+func (c DivarCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (structs.CrawledData, error) {
 	defer wg.Done()
-	fmt.Println("crawl single page:", job.ID)
+	fmt.Println("crawl single page. jobID:", job.ID, " link:", job.Url)
 
 	htmlContent, err := helpers.GetHtml(job.Url)
 	if err != nil {
@@ -85,34 +85,30 @@ func (dc DivarCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (str
 	var errors []error
 
 	// fill general data
-	err = dc.catchGeneralData(htmlContent, &crawledData)
+	err = c.catchGeneralData(htmlContent, &crawledData)
 	if err != nil {
 		errors = append(errors, err)
 	}
 
-	err = dc.catchPublishedAt(htmlContent, &crawledData)
+	err = c.catchPublishedAt(htmlContent, &crawledData)
 	if err != nil {
 		errors = append(errors, err)
 	}
 
-	err = dc.catchPricesAndSomeOtherData(htmlContent, &crawledData)
+	err = c.catchPricesAndSomeOtherData(htmlContent, &crawledData)
 	if err != nil {
 		errors = append(errors, err)
 	}
 
 	if len(errors) > 0 {
-		dc.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
 		return structs.CrawledData{}, errors[0]
 	}
-
-	dc.Repository.CreateOrUpdateAd(crawledData)
-
-	dc.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
 
 	return crawledData, nil
 }
 
-func (dc DivarCrawler) catchGeneralData(htmlContent string, crawledData *structs.CrawledData) error {
+func (c DivarCrawler) catchGeneralData(htmlContent string, crawledData *structs.CrawledData) error {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return fmt.Errorf("error parsing html: %s", err)
@@ -144,7 +140,7 @@ func (dc DivarCrawler) catchGeneralData(htmlContent string, crawledData *structs
 	crawledData.Title = items[0].Name
 	crawledData.RoomsCount = helpers.WordNumberToNumber(items[0].NumberOfRooms)
 	crawledData.URL = items[0].URL
-	crawledData.AdId = helpers.ExtractLastPartInPath(items[0].URL)
+	crawledData.PublisherAdKey = helpers.ExtractLastPartInPath(items[0].URL)
 	crawledData.City = helpers.ArabicToPersianChars(items[0].WebInfo.CityPersian)
 	crawledData.Neighborhood = helpers.ArabicToPersianChars(items[0].WebInfo.DistrictPersian)
 	if items[0].WebInfo.DistrictPersian == "" {
@@ -182,7 +178,7 @@ func getHouseType(category string) string {
 	return ""
 }
 
-func (dc DivarCrawler) catchPublishedAt(htmlContent string, crawledData *structs.CrawledData) error {
+func (c DivarCrawler) catchPublishedAt(htmlContent string, crawledData *structs.CrawledData) error {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return fmt.Errorf("error parsing html: %s", err)
@@ -203,7 +199,7 @@ func (dc DivarCrawler) catchPublishedAt(htmlContent string, crawledData *structs
 	return nil
 }
 
-func (dc DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledData *structs.CrawledData) error {
+func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledData *structs.CrawledData) error {
 	startPattern := `"LIST_DATA"\s*:\s*`
 	endPattern := `\s*}\s*]\s*}\s*`
 
@@ -308,6 +304,7 @@ func (dc DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledDa
 		crawledData.Age = 0
 	} else {
 		crawledData.Year = helpers.ToEnglishDigits(results["year"].(string))
+		crawledData.Year = strings.TrimSpace(strings.ReplaceAll(crawledData.Year, "قبل از", ""))
 		crawledData.Age = helpers.YearToAge(crawledData.Year)
 	}
 

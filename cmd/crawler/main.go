@@ -17,6 +17,8 @@ import (
 )
 
 func main() {
+	fmt.Println("Start")
+
 	configPath := flag.String("c", "config.yml", "Path to the configuration file")
 	flag.Parse()
 
@@ -42,38 +44,43 @@ func main() {
 	queries := sqlc.New(dbConn)
 
 	seeds := []map[string]string{
-		{"link": "https://divar.ir/s/tehran-province/buy-apartment", "source": divar.GetSourceName()},
-		// {"link": "https://divar.ir/s/tehran-province/buy-villa", "source": divar.GetSourceName()},
-		// {"link": "https://divar.ir/s/tehran-province/rent-apartment", "source": divar.GetSourceName()},
-		// {"link": "https://divar.ir/s/tehran-province/rent-villa", "source": divar.GetSourceName()},
+		// {"link": "https://divar.ir/s/tehran-province/buy-apartment", "source": divar.GetSourceName()},
+		{"link": "https://divar.ir/s/tehran-province/buy-villa", "source": divar.GetSourceName()},
+		{"link": "https://divar.ir/s/tehran-province/rent-apartment", "source": divar.GetSourceName()},
+		{"link": "https://divar.ir/s/tehran-province/rent-villa", "source": divar.GetSourceName()},
 	}
 
 	// Set crawl duration to 10 minutes
-	// TODO - use context if you can
+	// TODO - use context if you can do
 	timeout := time.Duration(100) * time.Second
 	timeoutCh := time.After(timeout)
 
-	// TODO - better to use buffered channel
+	// TODO - maybe you need to use buffered channel
 	done := make(chan struct{})
 	var crawlerVar crawler.Crawler
 	var wg sync.WaitGroup
 
-	crawlJobRepository := repositories.CrawlJobRepository{
+	jobRepository := repositories.JobRepository{
 		Queries: queries,
 	}
 
-	err = makeFailedOldCrawlJobs(crawlJobRepository)
+	repo := repositories.NewCrawlerRepository(queries)
+	err = repo.MakeOldCrawlJobsStatusFailed()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("×××××× ERROR in change old jobs status:", err)
 		return
 	}
 
-	for _, seed := range seeds {
-		crawlerVar = crawler.NewCrawler(seed["source"], crawlJobRepository)
+	fmt.Println("old jobs status changed to failed")
+
+	for index, seed := range seeds {
+		fmt.Println("Seed:", index, seed["link"])
+		crawlerVar = crawler.NewCrawler(seed["source"], repo)
 		repoResult := crawlerVar.CreateCrawlJobArchivePageLink(seed["link"])
 		if repoResult.Err != nil || repoResult.Exist {
 			continue
 		}
+		fmt.Println("Add seed to jobs:", seed["link"])
 
 		wg.Add(1)
 	}
@@ -81,22 +88,41 @@ func main() {
 	go func() {
 		// TODO - implement worker pool here
 		for {
-			fmt.Println("start worker")
-			crawlJob, err := crawlJobRepository.GetFirstWaitingCrawlJob()
+			fmt.Println("begin of iteration")
+			crawlJob, err := jobRepository.GetFirstWaitingCrawlJob()
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("×××××× Error in getting job", err)
 				return
 			}
+			fmt.Println("Job:", crawlJob.PageType, crawlJob.Url)
 
-			workerCrawler := crawler.NewCrawler(crawlJob.SourceName, crawlJobRepository)
-			// TODO - you should move divar constant
+			workerCrawler := crawler.NewCrawler(crawlJob.SourceName, repo)
+
 			if crawlJob.PageType == crawler.ARCHIVE_PAGE {
 				crawler.CrawlArchivePage(workerCrawler, crawlJob, &wg)
 			} else {
-				workerCrawler.CrawlItemPage(crawlJob, &wg)
-			}
+				crawledData, err := workerCrawler.CrawlItemPage(crawlJob, &wg)
+				if err != nil {
+					fmt.Println("×××××× Error in crawling single page. jobID:", crawlJob.ID, err)
+					workerCrawler.GetRepository().UpdateCrawlJobStatus(crawlJob.ID, repositories.CRAWLJOB_STATUS_FAILED)
+				} else {
+					err = workerCrawler.GetRepository().CreateOrUpdateAd(crawledData)
+					if err != nil {
+						fmt.Println("×××××× Error in insert or update:", err)
+						_, err = workerCrawler.GetRepository().UpdateCrawlJobStatus(crawlJob.ID, repositories.CRAWLJOB_STATUS_FAILED)
+						if err != nil {
+							fmt.Println("×××××× Error in changing job status", err)
+						}
+					} else {
+						_, err = workerCrawler.GetRepository().UpdateCrawlJobStatus(crawlJob.ID, repositories.CRAWLJOB_STATUS_DONE)
+						if err != nil {
+							fmt.Println("×××××× Error in changing job status", err)
+						}
+					}
 
-			time.Sleep(time.Millisecond * 200)
+				}
+
+			}
 		}
 	}()
 
@@ -109,18 +135,9 @@ func main() {
 	case <-done:
 		return
 	case <-timeoutCh:
-		makeFailedOldCrawlJobs(crawlJobRepository)
+		fmt.Println("TIME FINISHED")
+		repo.MakeOldCrawlJobsStatusFailed()
 		return
 	}
 
-}
-
-func makeFailedOldCrawlJobs(crawlJobRepository repositories.CrawlJobRepository) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	return crawlJobRepository.Queries.ChangeAllCrawlJobsStatus(ctx, sqlc.ChangeAllCrawlJobsStatusParams{
-		Statuses:  []string{repositories.CRAWLJOB_STATUS_WAITING, repositories.CRAWLJOB_STATUS_PICKED},
-		NewStatus: repositories.CRAWLJOB_STATUS_FAILED,
-	})
 }

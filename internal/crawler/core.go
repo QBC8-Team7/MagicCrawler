@@ -21,10 +21,10 @@ type Crawler interface {
 	GetSinglePageLinksFromArchivePage(htmlContent string) ([]string, error)
 	GetBaseUrl() string
 	GetSourceName() string
-	GetRepository() repositories.CrawlJobRepository
+	GetRepository() repositories.CrawlerRepository
 }
 
-func NewCrawler(sourceName string, repo repositories.CrawlJobRepository) Crawler {
+func NewCrawler(sourceName string, repo repositories.CrawlerRepository) Crawler {
 	switch sourceName {
 	case divar.GetSourceName():
 		return divar.DivarCrawler{Repository: repo}
@@ -40,9 +40,11 @@ func CrawlArchivePage(crawler Crawler, job sqlc.CrawlJob, wg *sync.WaitGroup) {
 
 	_, err := crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_PICKED)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error in updating job:", err)
 		return
 	}
+
+	fmt.Println("Archive job status changed to picked - jobID:", job.ID)
 
 	htmlContent, err := helpers.GetHtml(job.Url)
 	if err != nil {
@@ -66,7 +68,7 @@ func CrawlArchivePage(crawler Crawler, job sqlc.CrawlJob, wg *sync.WaitGroup) {
 	}
 
 	if len(links) > 0 {
-		fmt.Println("links count:", len(links))
+		fmt.Println("found", len(links), "links in archive page")
 		nextLink, err := helpers.GetNextPageLink(job.Url)
 		if err != nil {
 			fmt.Println(err)
@@ -88,6 +90,7 @@ func CrawlArchivePage(crawler Crawler, job sqlc.CrawlJob, wg *sync.WaitGroup) {
 			crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
 			return
 		}
+		fmt.Println(len(links), " new single page links added to crawl_jobs table")
 
 		nextLinkResult := crawler.GetRepository().CreateCrawlJobArchivePageLink(nextLink, crawler.GetSourceName())
 		fmt.Println("next link:", nextLink)
@@ -101,8 +104,16 @@ func CrawlArchivePage(crawler Crawler, job sqlc.CrawlJob, wg *sync.WaitGroup) {
 			return
 		}
 
+		fmt.Println("next archive page link added to crawl_jobs table")
+
 		wg.Add(len(links) + 1)
 	}
 
-	crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
+	_, err = crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_DONE)
+	if err != nil {
+		fmt.Println("error in updating archive page status", err)
+		return
+	}
+
+	fmt.Println("archive page job status changed to done", job.ID)
 }
