@@ -18,3 +18,8 @@ logger:
   level:
   encoding:
   path:
+redis:
+  host:
+  port:
+  password:
+  db:
