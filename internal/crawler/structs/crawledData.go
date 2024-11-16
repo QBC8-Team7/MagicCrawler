@@ -13,7 +13,7 @@ type CrawledData struct {
 	URL              string
 	Year             string
 	Age              int
-	AdId             string
+	PublisherAdKey   string
 	FloorNumber      int
 	HasWarehouse     bool
 	HasElevator      bool
@@ -24,4 +24,6 @@ type CrawledData struct {
 	PublishedAt      string
 	City             string
 	Neighborhood     string
+	SourceName       string
+	Author           string
 }

@@ -299,6 +299,19 @@ func (q *Queries) GetAdByID(ctx context.Context, id int64) (Ad, error) {
 	return i, err
 }
 
+const getAdByPublisherAdKey = `-- name: GetAdByPublisherAdKey :one
+SELECT ad.id
+FROM ad
+WHERE ad.publisher_ad_key = $1
+`
+
+func (q *Queries) GetAdByPublisherAdKey(ctx context.Context, adKey string) (int64, error) {
+	row := q.db.QueryRow(ctx, getAdByPublisherAdKey, adKey)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getAdsByIds = `-- name: GetAdsByIds :many
 SELECT id, publisher_ad_key, publisher_id, created_at, updated_at, published_at, category, author, url, title, description, city, neighborhood, house_type, meterage, rooms_count, year, floor, total_floors, has_warehouse, has_elevator, has_parking, lat, lng
 FROM ad

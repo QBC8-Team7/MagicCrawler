@@ -16,3 +16,6 @@ WHERE id = sqlc.arg('id');
 SELECT *
 FROM ad_picture
 WHERE id = sqlc.arg('id');
+
+-- name: DeleteAllPicturesOfAd :exec
+DELETE FROM ad_picture WHERE ad_id = sqlc.arg('ad_id');
