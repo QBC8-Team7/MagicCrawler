@@ -136,7 +136,10 @@ func main() {
 		return
 	case <-timeoutCh:
 		fmt.Println("TIME FINISHED")
-		repo.MakeOldCrawlJobsStatusFailed()
+		err := repo.MakeOldCrawlJobsStatusFailed()
+		if err != nil {
+			fmt.Println(err)
+		}
 		return
 	}
 

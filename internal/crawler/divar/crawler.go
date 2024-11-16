@@ -101,7 +101,10 @@ func (c DivarCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (stru
 	}
 
 	if len(errors) > 0 {
-		c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		_, err = c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		if err != nil {
+			fmt.Println(err)
+		}
 		return structs.CrawledData{}, errors[0]
 	}
 

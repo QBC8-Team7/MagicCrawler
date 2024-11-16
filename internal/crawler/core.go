@@ -53,7 +53,10 @@ func CrawlArchivePage(crawler Crawler, job sqlc.CrawlJob, wg *sync.WaitGroup) {
 		// TODO - maybe we need to put error in db
 		// TODO - maybe we need to save resource usage and time
 		// TODO - maybe we can add try fields for job
-		crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		_, err = crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		if err != nil {
+			fmt.Println(err)
+		}
 		return
 	}
 
@@ -63,7 +66,10 @@ func CrawlArchivePage(crawler Crawler, job sqlc.CrawlJob, wg *sync.WaitGroup) {
 		// TODO - maybe we need to put error in db
 		// TODO - maybe we need to save resource usage and time
 		// TODO - maybe we can add try fields for job
-		crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		_, err = crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		if err != nil {
+			fmt.Println(err)
+		}
 		return
 	}
 
@@ -75,7 +81,10 @@ func CrawlArchivePage(crawler Crawler, job sqlc.CrawlJob, wg *sync.WaitGroup) {
 			// TODO - error handling
 			// TODO - maybe we need to save resource usage and time
 			// TODO - maybe we can add try fields for job
-			crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+			_, err = crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+			if err != nil {
+				fmt.Println(err)
+			}
 			return
 		}
 
@@ -87,7 +96,10 @@ func CrawlArchivePage(crawler Crawler, job sqlc.CrawlJob, wg *sync.WaitGroup) {
 			// TODO - error handling
 			// TODO - maybe we need to save resource usage and time
 			// TODO - maybe we can add try fields for job
-			crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+			_, err = crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+			if err != nil {
+				fmt.Println(err)
+			}
 			return
 		}
 		fmt.Println(len(links), " new single page links added to crawl_jobs table")
@@ -100,7 +112,10 @@ func CrawlArchivePage(crawler Crawler, job sqlc.CrawlJob, wg *sync.WaitGroup) {
 			// TODO - maybe we need to put error in db
 			// TODO - maybe we need to save resource usage and time
 			// TODO - maybe we can add try fields for job
-			crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+			_, err = crawler.GetRepository().UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+			if err != nil {
+				fmt.Println(err)
+			}
 			return
 		}
 
