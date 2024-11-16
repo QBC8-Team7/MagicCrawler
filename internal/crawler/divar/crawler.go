@@ -5,61 +5,110 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/helpers"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/structs"
+	"github.com/QBC8-Team7/MagicCrawler/internal/repositories"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 )
 
-type Crawler struct{}
-
-func (c Crawler) CrawlArchivePage(link string) []string {
-	// TODO - Implement crawl archive page
-
-	fmt.Println("ArchivePage")
-	return []string{
-		"https://divar.ir/v/%D8%A8%D8%B1%D8%AC-%D9%85%D9%8F%D8%AC%D9%8E%D9%84%D9%84-%D9%88%D9%8B-%D9%87%D9%8F%D8%AA%D9%90%D9%84%DB%8C%D9%86%DA%AF-110%D9%85%D8%AA%D8%B12%D8%AE-2%D8%AA%D8%B1%D8%A7%D8%B3-2%D9%BE%D8%A7%D8%B1%DA%A9%DB%8C%D9%86%DA%AF/wZhYfCej",
-		// "https://divar.ir/v/%DB%B9%DB%B0-%D9%85%D8%AA%D8%B1-%D8%AF%D9%88-%D8%AE%D9%88%D8%A7%D8%A8%D9%87-%D9%81%D9%88%D9%84-%D8%A7%D9%85%DA%A9%D8%A7%D9%86%D8%A7%D8%AA-%D8%B4%D9%87%D8%B1%DA%A9-%D9%85%D8%A8%D8%B9%D8%AB-%D8%AC%D9%86%D8%AA-%D8%B4%D9%85%D8%A7%D9%84/wZnkiwjN",
-		// "https://divar.ir/v/%D9%81%D8%B1%D9%88%D8%B4-%D9%88%DB%8C%D9%84%D8%A7-%D8%A8%D8%A7%D8%BA-%D8%AF%D9%85%D8%A7%D9%88%D9%86%D8%AF-%DB%B3%DB%B5%DB%B0-%D9%85%D8%AA%D8%B1/wZpwsRu2",
-		// "https://divar.ir/v/%D9%81%D8%B1%D9%88%D8%B4%DB%B2%DB%B6%DB%B0%D9%85%D8%AA%D8%B1-%D9%88%DB%8C%D9%84%D8%A7%DB%8C%DB%8C-%D8%AF%D9%88%D8%B7%D8%A8%D9%82%D9%87-%D9%85%D8%AC%D8%B2%D8%A7-%D8%AF%D8%B1-%D9%81%D8%A7%D8%B2%DB%B3-%D8%A7%D9%86%D8%AF%DB%8C%D8%B4%D9%87/wZpo8rRP",
-		// "https://divar.ir/v/%D9%81%D8%B1%D9%88%D8%B4-%D8%A2%D9%BE%D8%A7%D8%B1%D8%AA%D9%85%D8%A7%D9%86/wZlERUNi",
-		// "https://divar.ir/v/%D8%A2%D9%BE%D8%A7%D8%B1%D8%AA%D9%85%D8%A7%D9%86-80-%D9%85%D8%AA%D8%B1%DB%8C-%DB%8C%D8%A7%D8%AE%DA%86%DB%8C-%D8%A2%D8%A8%D8%A7%D8%AF-%D9%86%D8%A7%D8%B2%DB%8C-%D8%A7%D8%A8%D8%A7%D8%AF/wZqcVWMQ",
-		// "https://divar.ir/v/%D8%AE%D8%A7%D9%86%D9%87-%D9%88%DB%8C%D9%84%D8%A7%DB%8C%DB%8C-%D8%B3%D9%86%D8%AF-%D8%AF%D8%A7%D8%B1/wZmMb4lq",
-		// "https://divar.ir/v/%D8%A2%D9%BE%D8%A7%D8%B1%D8%AA%D9%85%D8%A7%D9%86-%DB%B1%DB%B2%DB%B0%D9%85%D8%AA%D8%B1%DB%8C-%D8%B5%D8%A7%D9%84%D8%AD%DB%8C%D9%87/wZJcUdyR",
-		// "https://divar.ir/v/%D8%A2%D9%BE%D8%A7%D8%B1%D8%AA%D9%85%D8%A7%D9%86-%D8%B3%D9%87-%D8%AE%D9%88%D8%A7%D8%A8%D9%87-%D8%B4%D9%85%D8%A7%D9%84-%D8%AC%D8%B1%D8%AF%D9%86/wZpc0SVj",
-		// "https://divar.ir/v/150%D9%85%D8%AA%D8%B1-%D8%A8%D8%B1%D8%AC-%D8%A8%D8%A7%D8%BA-%D9%86%D9%88%D8%B3%D8%A7%D8%B2-%D9%88%DB%8C%D9%88-%D8%A7%D8%A8%D8%AF%DB%8C-%D8%B3%D8%B9%D8%A7%D8%AF%D8%AA-%D8%A2%D8%A8%D8%A7%D8%AF/wZmM0v34",
-	}
-
+type DivarCrawler struct {
+	Repository repositories.CrawlerRepository
 }
 
-func (c Crawler) CrawlItemPage(link string) (structs.CrawledData, error) {
-	htmlContent, err := helpers.GetHtml(link)
+func GetSourceName() string {
+	return "divar"
+}
+
+func (c DivarCrawler) GetSourceName() string {
+	return "divar"
+}
+
+func (c DivarCrawler) GetBaseUrl() string {
+	return "https://divar.ir"
+}
+
+func (c DivarCrawler) GetRepository() repositories.CrawlerRepository {
+	return c.Repository
+}
+
+func (c DivarCrawler) CreateCrawlJobArchivePageLink(link string) repositories.RepoResult {
+	return c.Repository.CreateCrawlJobArchivePageLink(link, GetSourceName())
+}
+
+func (c DivarCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
+	fmt.Println("Get links from archive page")
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		return []string{}, fmt.Errorf("error parsing html: %s", err)
+	}
+
+	var scriptContent string
+	doc.Find("[type='application/ld+json']").Each(func(index int, item *goquery.Selection) {
+		scriptContent = item.Text()
+	})
+
+	if len(scriptContent) == 0 {
+		return []string{}, fmt.Errorf("no json-ld script found")
+	}
+
+	var items []ArchivePageItem
+	err = json.Unmarshal([]byte(scriptContent), &items)
+	if err != nil {
+		return []string{}, fmt.Errorf("error unmarshalling json: %s", err)
+	}
+
+	links := make([]string, len(items))
+	for index, item := range items {
+		links[index] = item.URL
+	}
+
+	return links, nil
+}
+
+func (c DivarCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (structs.CrawledData, error) {
+	defer wg.Done()
+	fmt.Println("crawl single page. jobID:", job.ID, " link:", job.Url)
+
+	htmlContent, err := helpers.GetHtml(job.Url)
 	if err != nil {
 		return structs.CrawledData{}, err
 	}
 
-	crawledData := structs.CrawledData{}
+	crawledData := structs.CrawledData{
+		SourceName: GetSourceName(),
+	}
+
+	var errors []error
 
 	// fill general data
-	err = c.CatchGeneralData(htmlContent, &crawledData)
+	err = c.catchGeneralData(htmlContent, &crawledData)
 	if err != nil {
-		return structs.CrawledData{}, err
+		errors = append(errors, err)
 	}
 
-	err = c.CatchPublishedAt(htmlContent, &crawledData)
+	err = c.catchPublishedAt(htmlContent, &crawledData)
 	if err != nil {
-		return structs.CrawledData{}, err
+		errors = append(errors, err)
 	}
 
-	err = c.CatchPricesAndSomeOtherData(htmlContent, &crawledData)
+	err = c.catchPricesAndSomeOtherData(htmlContent, &crawledData)
 	if err != nil {
-		return structs.CrawledData{}, err
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
+		return structs.CrawledData{}, errors[0]
 	}
 
 	return crawledData, nil
 }
 
-func (c Crawler) CatchGeneralData(htmlContent string, crawledData *structs.CrawledData) error {
+func (c DivarCrawler) catchGeneralData(htmlContent string, crawledData *structs.CrawledData) error {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return fmt.Errorf("error parsing html: %s", err)
@@ -91,7 +140,7 @@ func (c Crawler) CatchGeneralData(htmlContent string, crawledData *structs.Crawl
 	crawledData.Title = items[0].Name
 	crawledData.RoomsCount = helpers.WordNumberToNumber(items[0].NumberOfRooms)
 	crawledData.URL = items[0].URL
-	crawledData.AdId = helpers.ExtractLastPartInPath(items[0].URL)
+	crawledData.PublisherAdKey = helpers.ExtractLastPartInPath(items[0].URL)
 	crawledData.City = helpers.ArabicToPersianChars(items[0].WebInfo.CityPersian)
 	crawledData.Neighborhood = helpers.ArabicToPersianChars(items[0].WebInfo.DistrictPersian)
 	if items[0].WebInfo.DistrictPersian == "" {
@@ -129,7 +178,7 @@ func getHouseType(category string) string {
 	return ""
 }
 
-func (c Crawler) CatchPublishedAt(htmlContent string, crawledData *structs.CrawledData) error {
+func (c DivarCrawler) catchPublishedAt(htmlContent string, crawledData *structs.CrawledData) error {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return fmt.Errorf("error parsing html: %s", err)
@@ -150,7 +199,7 @@ func (c Crawler) CatchPublishedAt(htmlContent string, crawledData *structs.Crawl
 	return nil
 }
 
-func (c Crawler) CatchPricesAndSomeOtherData(htmlContent string, crawledData *structs.CrawledData) error {
+func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledData *structs.CrawledData) error {
 	startPattern := `"LIST_DATA"\s*:\s*`
 	endPattern := `\s*}\s*]\s*}\s*`
 
@@ -255,6 +304,7 @@ func (c Crawler) CatchPricesAndSomeOtherData(htmlContent string, crawledData *st
 		crawledData.Age = 0
 	} else {
 		crawledData.Year = helpers.ToEnglishDigits(results["year"].(string))
+		crawledData.Year = strings.TrimSpace(strings.ReplaceAll(crawledData.Year, "قبل از", ""))
 		crawledData.Age = helpers.YearToAge(crawledData.Year)
 	}
 

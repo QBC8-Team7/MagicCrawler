@@ -28,6 +28,15 @@ func (q *Queries) CreateAdPicture(ctx context.Context, arg CreateAdPictureParams
 	return i, err
 }
 
+const deleteAllPicturesOfAd = `-- name: DeleteAllPicturesOfAd :exec
+DELETE FROM ad_picture WHERE ad_id = $1
+`
+
+func (q *Queries) DeleteAllPicturesOfAd(ctx context.Context, adID *int64) error {
+	_, err := q.db.Exec(ctx, deleteAllPicturesOfAd, adID)
+	return err
+}
+
 const deletePictureByID = `-- name: DeletePictureByID :exec
 DELETE FROM ad_picture
 WHERE id = $1
