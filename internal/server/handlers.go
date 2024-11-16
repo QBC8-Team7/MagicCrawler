@@ -109,7 +109,7 @@ func (s *Server) createAd(c echo.Context) error {
 		Url:  &adParam.PictureURL,
 	}
 
-	_, err = s.db.CreateAdPicture(s.dbContext, createPictureParam)
+	_, _ = s.db.CreateAdPicture(s.dbContext, createPictureParam)
 
 	return c.JSON(http.StatusOK, jsonResponse{
 		Success: true,
