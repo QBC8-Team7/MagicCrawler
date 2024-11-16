@@ -5,16 +5,19 @@ import (
 )
 
 func registerRoutes(e *echo.Echo, s *Server) {
-	s.router.GET("/healthz", healthCheck)
+	apiV1 := e.Group("/api/v1")
 
-	adGroup := e.Group("/ad")
+	apiV1.GET("/healthz", healthCheck)
+
+	adGroup := apiV1.Group("/ad")
 	adGroup.DELETE("/:adID", s.deleteAdByID)
 	adGroup.GET("/search", s.searchAds)
+	adGroup.GET("/populars", s.getPopularAds)
 	adGroup.GET("/:adID", s.getAdById)
 	adGroup.GET("", s.getAllAds)
 	adGroup.POST("", s.createAd)
 
-	userGroup := e.Group("/user")
+	userGroup := apiV1.Group("/user")
 	userGroup.GET("/ad", s.getUsersAds)
 	userGroup.POST("/favorite/:adID", s.createUserFavoriteAd)
 	userGroup.DELETE("/favorite/:adID", s.deleteUserFavoriteAd)
@@ -22,14 +25,13 @@ func registerRoutes(e *echo.Echo, s *Server) {
 	userGroup.GET("", s.getUserInfo)
 	userGroup.PUT("/watchlist-period/", s.updateUserWatchListPeriod)
 
-	priceGroup := e.Group("/price")
+	priceGroup := apiV1.Group("/price")
 	priceGroup.GET("/:adID/all", s.getAdsAllPrices)
 	priceGroup.GET("/:adID", s.getAdsLatestPrice)
 	priceGroup.POST("", s.setPriceOnAd)
 
-	pictureGroup := e.Group("/picture")
+	pictureGroup := apiV1.Group("/picture")
 	pictureGroup.GET("/:adID", s.getAdPictures)
 	pictureGroup.DELETE("/:pictureID", s.deletePicture)
 	pictureGroup.POST("", s.createAdPicture)
-
 }
