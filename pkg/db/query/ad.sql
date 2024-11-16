@@ -107,6 +107,11 @@ SELECT ad.publisher_ad_key
 FROM ad
 WHERE ad.id = sqlc.narg('ad_key');
 
+-- name: GetAdByPublisherAdKey :one
+SELECT ad.id
+FROM ad
+WHERE ad.publisher_ad_key = sqlc.arg('ad_key');
+
 -- Get Ad by its ID
 -- name: GetAdByID :one
 SELECT ad.*
