@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	myredis "github.com/QBC8-Team7/MagicCrawler/pkg/redis"
 	"log"
 
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
@@ -25,6 +26,13 @@ func main() {
 
 	dbContext := context.Background()
 
+	redisClient := myredis.NewRedisClient(dbContext, conf.Redis.Host, conf.Redis.Port, conf.Redis.Password, conf.Redis.DB)
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			log.Fatalf("Failed to close Redis client: %v", err)
+		}
+	}()
+
 	dbUri := db.GetDbUri(conf)
 	dbConn, err := db.GetDBConnection(dbContext, dbUri)
 	if err != nil {
@@ -40,7 +48,7 @@ func main() {
 
 	dbQueries := sqlc.New(dbConn)
 
-	s, err := server.NewServer(dbContext, conf, dbQueries)
+	s, err := server.NewServer(dbContext, conf, dbQueries, redisClient)
 	if err != nil {
 		log.Fatal(fmt.Errorf("could not start server: %w", err))
 	}

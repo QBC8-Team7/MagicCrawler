@@ -52,3 +52,36 @@ type Rent struct {
 	Value            int `json:"value"`
 	TransformedValue int `json:"transformedValue"`
 }
+
+type ArchivePageItem struct {
+	Context               string                           `json:"@context"`
+	Type                  string                           `json:"@type"`
+	AccommodationCategory string                           `json:"accommodationCategory"`
+	Description           string                           `json:"description"`
+	FloorSize             ArchivePageItemQuantitativeValue `json:"floorSize"`
+	Geo                   ArchivePageItemGeoCoordinates    `json:"geo"`
+	Image                 string                           `json:"image"`
+	Name                  string                           `json:"name"`
+	NumberOfRooms         string                           `json:"numberOfRooms"`
+	URL                   string                           `json:"url"`
+	WebInfo               ArchivePageItemWebInfo           `json:"web_info"`
+}
+
+type ArchivePageItemQuantitativeValue struct {
+	Type     string `json:"@type"`
+	UnitCode string `json:"unitCode"`
+	Value    string `json:"value"`
+}
+
+type ArchivePageItemGeoCoordinates struct {
+	Type      string `json:"@type"`
+	Address   string `json:"address"`
+	Latitude  string `json:"latitude"`
+	Longitude string `json:"longitude"`
+}
+
+type ArchivePageItemWebInfo struct {
+	CategorySlugPersian string `json:"category_slug_persian"`
+	CityPersian         string `json:"city_persian"`
+	Title               string `json:"title"`
+}

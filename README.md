@@ -6,7 +6,7 @@
 - [Bootup Documention](./doc/bootup.md)
 
 ## Release notes
-- [Release Notes](./doc/release-notes.md)
+- [Release Notes](https://github.com/QBC8-Team7/MagicCrawler/releases)
 
 ## Docs
 - [Project Architecture](./doc/architecture/design.png)

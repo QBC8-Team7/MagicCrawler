@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+
 	"github.com/spf13/viper"
 )
 
@@ -13,8 +14,9 @@ const (
 )
 
 type Logger struct {
-	Level string
-	Path  string
+	Level   string
+	Path    string
+	SysPath string
 }
 type Server struct {
 	Host       string
@@ -40,12 +42,20 @@ type Crawler struct {
 	CrawlTime uint
 }
 
+type Redis struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
+}
+
 type Config struct {
 	Server
 	Bot
 	Postgres
 	Crawler
 	Logger
+	Redis
 }
 
 func LoadConfig(configPath string) (*Config, error) {
