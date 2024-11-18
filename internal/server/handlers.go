@@ -304,11 +304,25 @@ func (s *Server) searchAds(c echo.Context) error {
 	if filterParam.Limit == nil {
 		limit := int32(10)
 		filterParam.Limit = &limit
+	} else if *filterParam.Limit <= 0 {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid limit",
+		})
 	}
+
 	if filterParam.Offset == nil {
 		offset := int32(0)
 		filterParam.Offset = &offset
+	} else if *filterParam.Offset < 0 {
+		return c.JSON(http.StatusBadRequest, jsonResponse{
+			Success: false,
+			Message: "invalid offset",
+		})
 	}
+
+	userLimit := *filterParam.Limit
+	userOffset := *filterParam.Offset
 
 	ads, err := s.db.FilterAds(s.dbContext, *filterParam)
 	if err != nil {
@@ -368,9 +382,9 @@ func (s *Server) searchAds(c echo.Context) error {
 		})
 	}
 
-	adIDs := make([]int64, len(ads))
-	for i, ad := range ads {
-		adIDs[i] = ad.ID
+	allAdIDs := make([]int64, len(allDesiredAds))
+	for i, ad := range allDesiredAds {
+		allAdIDs[i] = ad.ID
 	}
 
 	var filteredAds []sqlc.Ad
@@ -378,19 +392,19 @@ func (s *Server) searchAds(c echo.Context) error {
 	switch category {
 	case string(sqlc.AdCategoryBuy):
 		filteredAds, err = s.db.FilterAdsPriceBuy(s.dbContext, sqlc.FilterAdsPriceBuyParams{
-			AdIds:    adIDs,
+			AdIds:    allAdIDs,
 			MinPrice: minPrice,
 			MaxPrice: maxPrice,
 		})
 	case string(sqlc.AdCategoryRent):
 		filteredAds, err = s.db.FilterAdsPriceRent(s.dbContext, sqlc.FilterAdsPriceRentParams{
-			AdIds:    adIDs,
+			AdIds:    allAdIDs,
 			MinPrice: minPrice,
 			MaxPrice: maxPrice,
 		})
 	case string(sqlc.AdCategoryMortgage):
 		filteredAds, err = s.db.FilterAdsPriceMortgage(s.dbContext, sqlc.FilterAdsPriceMortgageParams{
-			AdIds:    adIDs,
+			AdIds:    allAdIDs,
 			MinPrice: minPrice,
 			MaxPrice: maxPrice,
 		})
@@ -412,9 +426,21 @@ func (s *Server) searchAds(c echo.Context) error {
 		filteredAds = []sqlc.Ad{}
 	}
 
-	return c.JSON(http.StatusOK, jsonResponse{
+	total = int64(len(filteredAds))
+
+	start := userOffset
+	end := userOffset + userLimit
+
+	if start > int32(len(filteredAds)) {
+		filteredAds = []sqlc.Ad{}
+	} else if end > int32(len(filteredAds)) {
+		end = int32(len(filteredAds))
+	}
+
+	return c.JSON(http.StatusOK, jsonListResponse{
 		Success: true,
-		Message: filteredAds,
+		Message: filteredAds[start:end],
+		Total:   total,
 	})
 }
 
