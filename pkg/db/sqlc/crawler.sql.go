@@ -51,7 +51,7 @@ func (q *Queries) CheckCrawlJobExists(ctx context.Context, arg CheckCrawlJobExis
 const createCrawlJob = `-- name: CreateCrawlJob :one
 INSERT INTO crawl_jobs (url, source_name, page_type, status)
 VALUES ($1, $2, $3, $4)
-RETURNING id, url, source_name, page_type, status, consumed_time_seconds, cpu_usage, ram_usage, created_at, updated_at
+RETURNING id, url, source_name, page_type, status, created_at, updated_at
 `
 
 type CreateCrawlJobParams struct {
@@ -76,9 +76,6 @@ func (q *Queries) CreateCrawlJob(ctx context.Context, arg CreateCrawlJobParams) 
 		&i.SourceName,
 		&i.PageType,
 		&i.Status,
-		&i.ConsumedTimeSeconds,
-		&i.CpuUsage,
-		&i.RamUsage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -86,7 +83,7 @@ func (q *Queries) CreateCrawlJob(ctx context.Context, arg CreateCrawlJobParams) 
 }
 
 const getFirstCrawlJobByStatus = `-- name: GetFirstCrawlJobByStatus :one
-SELECT id, url, source_name, page_type, status, consumed_time_seconds, cpu_usage, ram_usage, created_at, updated_at FROM crawl_jobs
+SELECT id, url, source_name, page_type, status, created_at, updated_at FROM crawl_jobs
 WHERE status = $1 
 LIMIT 1
 `
@@ -100,9 +97,6 @@ func (q *Queries) GetFirstCrawlJobByStatus(ctx context.Context, status string) (
 		&i.SourceName,
 		&i.PageType,
 		&i.Status,
-		&i.ConsumedTimeSeconds,
-		&i.CpuUsage,
-		&i.RamUsage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -110,7 +104,7 @@ func (q *Queries) GetFirstCrawlJobByStatus(ctx context.Context, status string) (
 }
 
 const getFirstMatchingCrawlJob = `-- name: GetFirstMatchingCrawlJob :one
-SELECT id, url, source_name, page_type, status, consumed_time_seconds, cpu_usage, ram_usage, created_at, updated_at FROM crawl_jobs
+SELECT id, url, source_name, page_type, status, created_at, updated_at FROM crawl_jobs
 WHERE url = $1 AND status = ANY($2::text[])
 LIMIT 1
 `
@@ -131,9 +125,6 @@ func (q *Queries) GetFirstMatchingCrawlJob(ctx context.Context, arg GetFirstMatc
 		&i.SourceName,
 		&i.PageType,
 		&i.Status,
-		&i.ConsumedTimeSeconds,
-		&i.CpuUsage,
-		&i.RamUsage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
