@@ -3,7 +3,7 @@ name: Go CI-CD Pipeline
 on:
   push:
     branches:
-      - develop
+      - main
   pull_request:
     branches:
       - develop
@@ -25,12 +25,10 @@ jobs:
       - name: Install Dependencies
         run: go mod download
 
-#      - name: Run Tests
-#        run: go test ./... -v
-
   lint:
     name: Run Go Lint
     runs-on: ubuntu-latest
+    needs: test
 
     steps:
       - name: Checkout Code
@@ -50,6 +48,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    needs: lint
 
     steps:
       - name: Checkout Code
@@ -60,38 +59,60 @@ jobs:
         with:
           go-version: '1.22.3'
 
-#      - name: Run Tests
-#        run: go test ./...
-
-      - name: Build for Linux
+      - name: Build app for Linux
         run: make app-linux
 
-      - name: Upload build artifact
+      - name: Build crawler for linux
+        run: make crawler-linux
+
+      - name: Upload app artifact
         uses: actions/upload-artifact@v3
         with:
           name: app-linux
           path: ./build/app-linux-amd64
 
-      - name: Upload deployment artifact
+      - name: Upload crawler artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: crawler-linux
+          path: ./build/crawler-linux-amd64
+
+      - name: Upload app deployment artifact
         uses: actions/upload-artifact@v3
         with:
           name: systemd-service
           path: ./deployment/systemd/magic-crawler.service
+
+      - name: Upload crawler deployment artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: crawler-service
+          path: ./deployment/systemd/crawler.service
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
 
     steps:
-      - name: Download build artifact
+      - name: Download app artifact
         uses: actions/download-artifact@v3
         with:
           name: app-linux
 
-      - name: Download deployment artifact
+      - name: Download crawler artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: crawler-linux
+
+      - name: Download app deployment artifact
         uses: actions/download-artifact@v3
         with:
           name: systemd-service
+
+      - name: Download crawler deployment artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: crawler-service
 
       - name: Install SSH client
         run: sudo apt-get update && sudo apt-get install -y ssh
@@ -116,26 +137,48 @@ jobs:
 
       - name: Stop the service before uploading new version
         run: |
-          ssh root@${{ secrets.SERVER_IP }} "systemctl stop magic-crawler.service"
+          ssh root@${{ secrets.SERVER_IP }} "systemctl stop magic-crawler.service && systemctl stop crawler.service"
 
-      - name: Upload binary file to the server
+      - name: Upload app binary file to the server
         run: |
           echo "Uploading app-linux binary to the server..."
           scp ./app-linux-amd64 root@${{ secrets.SERVER_IP }}:/opt/magic-crawler/build/app-linux-amd64
 
-      - name: Upload deployment directory to the server
+      - name: Upload crawler binary file to the server
+        run: |
+          echo "Uploading app-linux binary to the server..."
+          scp ./crawler-linux-amd64 root@${{ secrets.SERVER_IP }}:/opt/magic-crawler/build/crawler-linux-amd64
+
+      - name: Upload app deployment directory to the server
         run: |
           echo "Uploading deployment directory to the server..."
           scp ./magic-crawler.service root@${{ secrets.SERVER_IP }}:/opt/magic-crawler/deployment/magic-crawler.service
+
+      - name: Upload crawler deployment directory to the server
+        run: |
+          echo "Uploading deployment directory to the server..."
+          scp ./crawler.service root@${{ secrets.SERVER_IP }}:/opt/magic-crawler/deployment/crawler.service
 
       - name: Set permissions for binary
         run: |
           ssh root@${{ secrets.SERVER_IP }} "chmod +x /opt/magic-crawler/build/app-linux-amd64"
 
+      - name: Set permissions for binary
+        run: |
+          ssh root@${{ secrets.SERVER_IP }} "chmod +x /opt/magic-crawler/build/crawler-linux-amd64"
+
       - name: Set permissions for deployment file
         run: |
           ssh root@${{ secrets.SERVER_IP }} "chmod 644 /opt/magic-crawler/deployment/magic-crawler.service"
 
-      - name: Restart and enable the systemd service
+      - name: Set permissions for deployment file
+        run: |
+          ssh root@${{ secrets.SERVER_IP }} "chmod 644 /opt/magic-crawler/deployment/crawler.service"
+
+      - name: Restart and enable the app systemd service
         run: |
           ssh root@${{ secrets.SERVER_IP }} "systemctl daemon-reload && systemctl enable magic-crawler.service && systemctl restart magic-crawler.service && systemctl status magic-crawler.service"
+
+      - name: Restart and enable the crawler systemd service
+        run: |
+          ssh root@${{ secrets.SERVER_IP }} "systemctl daemon-reload && systemctl enable crawler.service && systemctl restart crawler.service && systemctl status crawler.service"
