@@ -994,7 +994,7 @@ func (s *Server) updateUserWatchListPeriod(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusConflict, jsonResponse{
 			Success: false,
-			Message: fmt.Sprintf("user must search and apply one filter first"),
+			Message: "user must search and apply one filter first",
 		})
 	}
 
