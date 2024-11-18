@@ -27,6 +27,10 @@ jobs:
       - name: Install Dependencies
         run: go mod download
 
+      - name: Run Tests
+        run: go test ./... -v
+
+
   lint:
     name: Run Go Lint
     runs-on: ubuntu-latest
