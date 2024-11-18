@@ -126,6 +126,20 @@ func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]Use
 	return items, nil
 }
 
+const getNextAdmin = `-- name: GetNextAdmin :one
+SELECT tg_id, role, watchlist_period
+FROM "user"
+WHERE role IN ('admin', 'super_admin')
+LIMIT 1 OFFSET $1
+`
+
+func (q *Queries) GetNextAdmin(ctx context.Context, offset int32) (User, error) {
+	row := q.db.QueryRow(ctx, getNextAdmin, offset)
+	var i User
+	err := row.Scan(&i.TgID, &i.Role, &i.WatchlistPeriod)
+	return i, err
+}
+
 const getUserAds = `-- name: GetUserAds :many
 
 SELECT ad_id

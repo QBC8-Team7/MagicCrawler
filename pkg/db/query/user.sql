@@ -5,6 +5,12 @@ FROM "user"
 WHERE tg_id = sqlc.arg('tg_id')
 LIMIT 1;
 
+-- name: GetNextAdmin :one
+SELECT *
+FROM "user"
+WHERE role IN ('admin', 'super_admin')
+LIMIT 1 OFFSET $1;
+
 -- Get all users with pagination
 -- name: GetAllUsers :many
 SELECT *
