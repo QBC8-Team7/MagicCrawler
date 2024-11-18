@@ -9,7 +9,6 @@ require (
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/redis/go-redis/v9 v9.7.0
-	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/viper v1.19.0
 	go.uber.org/zap v1.27.0

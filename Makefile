@@ -6,8 +6,8 @@ CRAWLER_LINUX_BIN=build/crawler-linux-amd64
 app-linux:
 	GOOS=linux GOARCH=amd64 go build -o $(APP_LINUX_BIN) cmd/app/main.go
 
-crawler:
-	GOOS=linux GOARCH=amd64 go build -o build/crawler-linux-amd64 cmd/crawler/main.go
+crawler-linux:
+	GOOS=linux GOARCH=amd64 go build -o $(CRAWLER_LINUX_BIN) cmd/crawler/main.go
 
 run-app:
 	go run ./cmd/app/main.go -c ./config.yml
