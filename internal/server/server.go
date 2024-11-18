@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/watchlist"
 
 	"github.com/QBC8-Team7/MagicCrawler/internal/middleware"
 	"github.com/labstack/echo/v4"
@@ -47,6 +48,8 @@ func NewServer(dbCtx context.Context, cfg *config.Config, db *sqlc.Queries, redi
 }
 
 func (s *Server) Run() error {
+	defer watchlist.GetService(s.dbContext, s.redis, s.db).StopAll()
+
 	s.router.Use(echoMiddlewares.CORSWithConfig(echoMiddlewares.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{"*"},

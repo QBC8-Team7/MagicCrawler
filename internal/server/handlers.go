@@ -1,7 +1,9 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/watchlist"
 	"net/http"
 	"sort"
 	"strconv"
@@ -335,6 +337,30 @@ func (s *Server) searchAds(c echo.Context) error {
 	infiniteLimit, zeroOffset := int32(1000), int32(0)
 	filterParam.Limit, filterParam.Offset = &infiniteLimit, &zeroOffset
 
+	userId, ok := c.Get("UserID").(string)
+	if !ok {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: "user ID is not set",
+		})
+	}
+
+	filterBytes, err := json.Marshal(filterParam)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("can not marshal filter: %v", err),
+		})
+	}
+
+	err = s.redis.Set(s.dbContext, myredis.CollectionFilter, userId, filterBytes)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while writing filter in redis: %v", err),
+		})
+	}
+
 	allDesiredAds, err := s.db.FilterAds(s.dbContext, *filterParam)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, jsonResponse{
@@ -346,6 +372,27 @@ func (s *Server) searchAds(c echo.Context) error {
 
 	if len(ads) == 0 {
 		ads = []sqlc.Ad{}
+	}
+
+	allAdIDs := make([]int64, len(allDesiredAds))
+	for i, ad := range allDesiredAds {
+		allAdIDs[i] = ad.ID
+	}
+
+	responseBytes, err := json.Marshal(allAdIDs)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("can not marshal response: %v", err),
+		})
+	}
+
+	err = s.redis.Set(s.dbContext, myredis.CollectionFilterResponse, userId, responseBytes)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, jsonResponse{
+			Success: false,
+			Message: fmt.Sprintf("internal error while writing response in redis: %v", err),
+		})
 	}
 
 	var minPrice, maxPrice *int64
@@ -380,11 +427,6 @@ func (s *Server) searchAds(c echo.Context) error {
 			Success: false,
 			Message: "category must be specified when applying price filters",
 		})
-	}
-
-	allAdIDs := make([]int64, len(allDesiredAds))
-	for i, ad := range allDesiredAds {
-		allAdIDs[i] = ad.ID
 	}
 
 	var filteredAds []sqlc.Ad
@@ -948,27 +990,49 @@ func (s *Server) updateUserWatchListPeriod(c echo.Context) error {
 		})
 	}
 
-	adParam := new(sqlc.UpdateUserParams)
-	if err := c.Bind(adParam); err != nil {
+	_, err := s.redis.Get(s.dbContext, myredis.CollectionFilter, userID)
+	if err != nil {
+		return c.JSON(http.StatusConflict, jsonResponse{
+			Success: false,
+			Message: "user must search and apply one filter first",
+		})
+	}
+
+	type PeriodParam struct {
+		Period *int32 `json:"watchlist_period"`
+	}
+
+	periodParam := new(PeriodParam)
+	if err := c.Bind(periodParam); err != nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
 			Message: "invalid params",
 		})
 	}
-	adParam.TgID = userID
 
-	if adParam.WatchlistPeriod == nil {
+	if periodParam.Period == nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
 			Message: "WatchList is Required",
 		})
 	}
-	_, err := s.db.UpdateUser(s.dbContext, *adParam)
+
+	updateUserPeriodParam := sqlc.UpdateUserPeriodParams{
+		WatchlistPeriod: periodParam.Period,
+		TgID:            userID,
+	}
+	_, err = s.db.UpdateUserPeriod(s.dbContext, updateUserPeriodParam)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, jsonResponse{
 			Success: false,
 			Message: "user found",
 		})
+	}
+
+	if *periodParam.Period == int32(0) {
+		watchlist.GetService(s.dbContext, s.redis, s.db).StopWatch(userID)
+	} else {
+		watchlist.GetService(s.dbContext, s.redis, s.db).StartWatch(s.cfg.Bot.Token, s.logger, userID, int(*periodParam.Period))
 	}
 
 	return c.JSON(http.StatusOK, jsonResponse{

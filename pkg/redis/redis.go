@@ -8,7 +8,9 @@ import (
 )
 
 const (
-	CollectionAdCount string = "ads"
+	CollectionAdCount        string = "ads"
+	CollectionFilter         string = "filter"
+	CollectionFilterResponse string = "filter_response"
 )
 
 type RedisClient struct {
