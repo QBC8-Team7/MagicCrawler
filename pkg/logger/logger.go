@@ -59,8 +59,24 @@ func (l *AppLogger) getLoggerLevel(cfg *config.Config) zapcore.Level {
 	return level
 }
 
+func (l *AppLogger) InitCustomLogger(appLogFilePath, sysLogFilePath string) {
+	customCfg := zapcore.EncoderConfig{
+		MessageKey: "MESSAGE",
+		TimeKey:    "TIME",
+		EncodeTime: zapcore.ISO8601TimeEncoder,
+		// LevelKey:   "LEVEL",
+		// CallerKey:     "caller",
+		// EncodeLevel:   zapcore.CapitalLevelEncoder,
+		// EncodeCaller:  zapcore.ShortCallerEncoder,
+		// NameKey:       "NAME",
+		// StacktraceKey: "stacktrace",
+	}
+
+	l.InitLogger(appLogFilePath, sysLogFilePath, customCfg)
+}
+
 // InitLogger initializes the main and system loggers
-func (l *AppLogger) InitLogger(appLogFilePath, sysLogFilePath string) {
+func (l *AppLogger) InitLogger(appLogFilePath, sysLogFilePath string, customEncoderCfg ...zapcore.EncoderConfig) {
 	logLevel := l.getLoggerLevel(l.cfg)
 
 	appFile, err := os.OpenFile(appLogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -82,6 +98,10 @@ func (l *AppLogger) InitLogger(appLogFilePath, sysLogFilePath string) {
 	encoderCfg.NameKey = "NAME"
 	encoderCfg.MessageKey = "MESSAGE"
 	encoderCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	if len(customEncoderCfg) > 0 {
+		encoderCfg = customEncoderCfg[0]
+	}
 
 	appCore := zapcore.NewCore(
 		zapcore.NewJSONEncoder(encoderCfg),

@@ -3,22 +3,20 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler"
-	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/divar"
+	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/loggers"
 	"github.com/QBC8-Team7/MagicCrawler/internal/repositories"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/utils"
 )
 
 func main() {
-	fmt.Println("Start")
-
 	configPath := flag.String("c", "config.yml", "Path to the configuration file")
 	flag.Parse()
 
@@ -42,108 +40,76 @@ func main() {
 	}()
 
 	queries := sqlc.New(dbConn)
+	timeout := time.Duration(conf.Crawler.Time) * time.Minute
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
-	seeds := []map[string]string{
-		// {"link": "https://divar.ir/s/tehran-province/buy-apartment", "source": divar.GetSourceName()},
-		{"link": "https://divar.ir/s/tehran-province/buy-villa", "source": divar.GetSourceName()},
-		{"link": "https://divar.ir/s/tehran-province/rent-apartment", "source": divar.GetSourceName()},
-		{"link": "https://divar.ir/s/tehran-province/rent-villa", "source": divar.GetSourceName()},
-	}
+	metricLogger := logger.NewAppLogger(conf)
+	metricLogger.InitLogger(conf.Crawler.MetricLogPath, conf.Logger.SysPath)
 
-	// Set crawl duration to 10 minutes
-	// TODO - use context if you can do
-	timeout := time.Duration(100) * time.Second
-	timeoutCh := time.After(timeout)
-
-	// TODO - maybe you need to use buffered channel
-	done := make(chan struct{})
-	var crawlerVar crawler.Crawler
-	var wg sync.WaitGroup
+	mainLogger := logger.NewAppLogger(conf)
+	mainLogger.InitCustomLogger(conf.Crawler.GeneralLogPath, conf.Logger.SysPath)
 
 	jobRepository := repositories.JobRepository{
 		Queries: queries,
 	}
 
-	repo := repositories.NewCrawlerRepository(queries)
-	err = repo.MakeOldCrawlJobsStatusFailed()
+	repo := repositories.NewCrawlerRepository(queries, mainLogger)
+	err = repo.ChangeWaitingOrPickedCrawlJobsStatusToFailed()
 	if err != nil {
-		fmt.Println("×××××× ERROR in change old jobs status:", err)
+		mainLogger.Error("error in change old jobs status:", err)
 		return
 	}
 
-	fmt.Println("old jobs status changed to failed")
+	mainLogger.Info("unfinished jobs marked as failed")
 
-	for index, seed := range seeds {
-		fmt.Println("Seed:", index, seed["link"])
-		crawlerVar = crawler.NewCrawler(seed["source"], repo)
-		repoResult := crawlerVar.CreateCrawlJobArchivePageLink(seed["link"])
-		if repoResult.Err != nil || repoResult.Exist {
+	seeds := conf.Crawler.Seeds
+	for _, seed := range seeds {
+		repoResult := crawler.NewCrawler(seed["source"], repo, mainLogger).CreateCrawlJobArchivePageLink(seed["url"])
+		if repoResult.Err != nil {
+			mainLogger.Error("error in inserting seed to db", repoResult.Err)
 			continue
 		}
-		fmt.Println("Add seed to jobs:", seed["link"])
 
-		wg.Add(1)
+		if repoResult.Exist {
+			mainLogger.Info("seed is exist in db")
+			continue
+		}
+
+		mainLogger.Info("seed inserted to jobs table | ", seed["url"])
 	}
 
-	go func() {
-		// TODO - implement worker pool here
-		for {
-			fmt.Println("begin of iteration")
+	for {
+		select {
+		case <-ctx.Done():
+			mainLogger.Info("Time For Crawl Has Finished")
+			err = repo.ChangeWaitingOrPickedCrawlJobsStatusToFailed()
+			if err != nil {
+				mainLogger.Error("error in change old jobs status:", err)
+			}
+			return
+		default:
 			crawlJob, err := jobRepository.GetFirstWaitingCrawlJob()
 			if err != nil {
-				fmt.Println("×××××× Error in getting job", err)
+				mainLogger.Info("no more jobs found: ", err)
 				return
 			}
-			fmt.Println("Job:", crawlJob.PageType, crawlJob.Url)
 
-			workerCrawler := crawler.NewCrawler(crawlJob.SourceName, repo)
+			mainLogger.Infof("=> Working on %s page | JobID: %d | link: %s", crawlJob.PageType, crawlJob.ID, crawlJob.Url)
+			workerCrawler := crawler.NewCrawler(crawlJob.SourceName, repo, mainLogger)
 
-			if crawlJob.PageType == crawler.ARCHIVE_PAGE {
-				crawler.CrawlArchivePage(workerCrawler, crawlJob, &wg)
+			err, usage := utils.RunAndMeasureUsage(mainLogger, func() error {
+				return crawler.Crawl(workerCrawler, crawlJob)
+			})
+
+			loggers.MetricLog(*metricLogger, err, usage, crawlJob)
+
+			if err != nil {
+				mainLogger.Errorf(" | [FAILED] | error: %s | ID: %d | type: %s", err, crawlJob.ID, crawlJob.PageType)
 			} else {
-				crawledData, err := workerCrawler.CrawlItemPage(crawlJob, &wg)
-				if err != nil {
-					fmt.Println("×××××× Error in crawling single page. jobID:", crawlJob.ID, err)
-					_, err := workerCrawler.GetRepository().UpdateCrawlJobStatus(crawlJob.ID, repositories.CRAWLJOB_STATUS_FAILED)
-					if err != nil {
-						fmt.Println(err)
-					}
-				} else {
-					err = workerCrawler.GetRepository().CreateOrUpdateAd(crawledData)
-					if err != nil {
-						fmt.Println("×××××× Error in insert or update:", err)
-						_, err = workerCrawler.GetRepository().UpdateCrawlJobStatus(crawlJob.ID, repositories.CRAWLJOB_STATUS_FAILED)
-						if err != nil {
-							fmt.Println("×××××× Error in changing job status", err)
-						}
-					} else {
-						_, err = workerCrawler.GetRepository().UpdateCrawlJobStatus(crawlJob.ID, repositories.CRAWLJOB_STATUS_DONE)
-						if err != nil {
-							fmt.Println("×××××× Error in changing job status", err)
-						}
-					}
-
-				}
-
+				mainLogger.Infof(" | [DONE] | type: %s | ID: %d| link: %s", crawlJob.PageType, crawlJob.ID, crawlJob.Url)
 			}
+			mainLogger.Info(" |--------------------------------------------------------------------------------------------------------")
 		}
-	}()
-
-	go func() {
-		wg.Wait()
-		done <- struct{}{}
-	}()
-
-	select {
-	case <-done:
-		return
-	case <-timeoutCh:
-		fmt.Println("TIME FINISHED")
-		err := repo.MakeOldCrawlJobsStatusFailed()
-		if err != nil {
-			fmt.Println(err)
-		}
-		return
 	}
-
 }

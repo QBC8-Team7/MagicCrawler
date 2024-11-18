@@ -2,35 +2,40 @@ package sheypoor
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/structs"
 	"github.com/QBC8-Team7/MagicCrawler/internal/repositories"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
 )
 
 type SheypoorCrawler struct {
 	Repository repositories.CrawlerRepository
+	Logger     *logger.AppLogger
+}
+
+func (c SheypoorCrawler) GetLogger() *logger.AppLogger {
+	return c.Logger
 }
 
 func GetSourceName() string {
 	return "sheypoor"
 }
 
-func (sc SheypoorCrawler) GetSourceName() string {
+func (c SheypoorCrawler) GetSourceName() string {
 	return "sheypoor"
 }
 
-func (sc SheypoorCrawler) GetBaseUrl() string {
+func (c SheypoorCrawler) GetBaseUrl() string {
 	return "https://sheypoor.com"
 }
 
-func (sc SheypoorCrawler) GetRepository() repositories.CrawlerRepository {
-	return sc.Repository
+func (c SheypoorCrawler) GetRepository() repositories.CrawlerRepository {
+	return c.Repository
 }
 
-func (sc SheypoorCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (structs.CrawledData, error) {
+func (c SheypoorCrawler) CrawlItemPage(job sqlc.CrawlJob) (structs.CrawledData, error) {
 	fmt.Println("start ItemPage", job.Url)
 
 	time.Sleep(time.Second * 20)
@@ -38,10 +43,10 @@ func (sc SheypoorCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (
 	return structs.CrawledData{}, nil
 }
 
-func (sc SheypoorCrawler) CreateCrawlJobArchivePageLink(link string) repositories.RepoResult {
+func (c SheypoorCrawler) CreateCrawlJobArchivePageLink(link string) repositories.RepoResult {
 	return repositories.RepoResult{}
 }
 
-func (sc SheypoorCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
+func (c SheypoorCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
 	return []string{}, nil
 }
