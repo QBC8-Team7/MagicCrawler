@@ -111,7 +111,10 @@ func main() {
 
 			if err != nil {
 				mainLogger.Errorf(" | [FAILED] | error: %s | ID: %d | type: %s", err, crawlJob.ID, crawlJob.PageType)
-				adminNotifier.Send(fmt.Sprintf("Crawling Failed\nJobID: %d\n%s", crawlJob.ID, err))
+				err := adminNotifier.Send(fmt.Sprintf("Crawling Failed\nJobID: %d\n%s", crawlJob.ID, err))
+				if err != nil {
+					mainLogger.Errorf(" | failed to send notify to admin: %s", err)
+				}
 			} else {
 				mainLogger.Infof(" | [DONE] | type: %s | ID: %d| link: %s", crawlJob.PageType, crawlJob.ID, crawlJob.Url)
 			}

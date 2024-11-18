@@ -26,7 +26,12 @@ func NewAdminNotifier(conf *config.Config, queries *sqlc.Queries) (*AdminNotifie
 	}, nil
 }
 
-func (n AdminNotifier) Send(message string) {
-	admin, _ := n.repo.GetNextAdmin()
-	n.notif.SendMessage(admin.TgID, message)
+func (n AdminNotifier) Send(message string) error {
+	admin, err := n.repo.GetNextAdmin()
+	if err != nil {
+		return err
+	}
+
+	err = n.notif.SendMessage(admin.TgID, message)
+	return err
 }
