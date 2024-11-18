@@ -48,7 +48,7 @@ func NewServer(dbCtx context.Context, cfg *config.Config, db *sqlc.Queries, redi
 }
 
 func (s *Server) Run() error {
-	defer watchlist.GetService(s.dbContext, s.redis).StopAll()
+	defer watchlist.GetService(s.dbContext, s.redis, s.db).StopAll()
 
 	s.router.Use(echoMiddlewares.CORSWithConfig(echoMiddlewares.CORSConfig{
 		AllowOrigins: []string{"*"},

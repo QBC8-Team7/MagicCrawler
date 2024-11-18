@@ -1022,9 +1022,9 @@ func (s *Server) updateUserWatchListPeriod(c echo.Context) error {
 	}
 
 	if *adParam.WatchlistPeriod == int32(0) {
-		watchlist.GetService(s.dbContext, s.redis).StopWatch(userID)
+		watchlist.GetService(s.dbContext, s.redis, s.db).StopWatch(userID)
 	} else {
-		watchlist.GetService(s.dbContext, s.redis).StartWatch(s.cfg.Bot.Token, s.logger, userID, int(*adParam.WatchlistPeriod))
+		watchlist.GetService(s.dbContext, s.redis, s.db).StartWatch(s.cfg.Bot.Token, s.logger, userID, int(*adParam.WatchlistPeriod))
 	}
 
 	return c.JSON(http.StatusOK, jsonResponse{
