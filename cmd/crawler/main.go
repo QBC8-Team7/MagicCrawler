@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/notification"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/utils"
 )
 
@@ -50,10 +52,6 @@ func main() {
 	mainLogger := logger.NewAppLogger(conf)
 	mainLogger.InitCustomLogger(conf.Crawler.GeneralLogPath, conf.Logger.SysPath)
 
-	jobRepository := repositories.JobRepository{
-		Queries: queries,
-	}
-
 	repo := repositories.NewCrawlerRepository(queries, mainLogger)
 	err = repo.ChangeWaitingOrPickedCrawlJobsStatusToFailed()
 	if err != nil {
@@ -79,6 +77,13 @@ func main() {
 		mainLogger.Info("seed inserted to jobs table | ", seed["url"])
 	}
 
+	adminNotifier, err := notification.NewAdminNotifier(conf, queries)
+	if err != nil {
+		mainLogger.Error("failed to initialize notification service", err)
+		return
+	}
+
+	jobRepository := repositories.JobRepository{Queries: queries}
 	for {
 		select {
 		case <-ctx.Done():
@@ -96,16 +101,17 @@ func main() {
 			}
 
 			mainLogger.Infof("=> Working on %s page | JobID: %d | link: %s", crawlJob.PageType, crawlJob.ID, crawlJob.Url)
-			workerCrawler := crawler.NewCrawler(crawlJob.SourceName, repo, mainLogger)
+			crawlerInstance := crawler.NewCrawler(crawlJob.SourceName, repo, mainLogger)
 
 			err, usage := utils.RunAndMeasureUsage(mainLogger, func() error {
-				return crawler.Crawl(workerCrawler, crawlJob)
+				return crawler.Crawl(crawlerInstance, crawlJob)
 			})
 
 			loggers.MetricLog(*metricLogger, err, usage, crawlJob)
 
 			if err != nil {
 				mainLogger.Errorf(" | [FAILED] | error: %s | ID: %d | type: %s", err, crawlJob.ID, crawlJob.PageType)
+				adminNotifier.Send(fmt.Sprintf("Crawling Failed\nJobID: %d\n%s", crawlJob.ID, err))
 			} else {
 				mainLogger.Infof(" | [DONE] | type: %s | ID: %d| link: %s", crawlJob.PageType, crawlJob.ID, crawlJob.Url)
 			}
