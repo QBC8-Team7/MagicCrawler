@@ -47,9 +47,6 @@ func NewServer(dbCtx context.Context, cfg *config.Config, db *sqlc.Queries, redi
 }
 
 func (s *Server) Run() error {
-	certFile := "/root/cert.crt"
-	keyFile := "/root/private.key"
-
 	s.router.Use(echoMiddlewares.CORSWithConfig(echoMiddlewares.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{"*"},
