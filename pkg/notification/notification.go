@@ -4,6 +4,7 @@ import (
 	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"strconv"
+	"sync"
 )
 
 type Service struct {
@@ -11,14 +12,23 @@ type Service struct {
 	Logger *logger.AppLogger
 }
 
-func NewNotificationService(botToken string, logger *logger.AppLogger) (*Service, error) {
-	bot, err := tgbotapi.NewBotAPI(botToken)
-	if err != nil {
-		return nil, err
-	}
-	logger.Infof("Telegram bot uthorized on account %s", bot.Self.UserName)
+var (
+	instance *Service
+	once     sync.Once
+)
 
-	return &Service{Bot: bot, Logger: logger}, nil
+func GetService(botToken string, appLogger *logger.AppLogger) (*Service, error) {
+	var initErr error
+	once.Do(func() {
+		bot, err := tgbotapi.NewBotAPI(botToken)
+		if err != nil {
+			initErr = err
+			return
+		}
+		appLogger.Infof("Telegram bot authorized on account %s", bot.Self.UserName)
+		instance = &Service{Bot: bot, Logger: appLogger}
+	})
+	return instance, initErr
 }
 
 func (n *Service) SendMessage(tgID string, message string) error {
