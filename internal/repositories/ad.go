@@ -193,7 +193,7 @@ func (r AdRepository) makeCreateAdParams(ctx context.Context, crawledData struct
 		TotalFloors:    nil,
 		HasWarehouse:   &crawledData.HasWarehouse,
 		HasElevator:    &crawledData.HasElevator,
-		HasParking:     nil,
+		HasParking:     &crawledData.HasParking,
 	}
 
 	if strings.TrimSpace(crawledData.Author) != "" {

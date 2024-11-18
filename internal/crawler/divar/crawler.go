@@ -244,6 +244,12 @@ func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledDat
 					} else if item.Disabled {
 						results["has_warehouse"] = false
 					}
+				} else if item.IconName == "parking" {
+					if !item.Disabled {
+						results["has_parking"] = true
+					} else if item.Disabled {
+						results["has_parking"] = false
+					}
 				} else if item.Title == "ساخت" {
 					results["year"] = item.Value
 				}
@@ -311,6 +317,13 @@ func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledDat
 		crawledData.HasElevator = false
 	} else {
 		crawledData.HasElevator = results["has_elevator"].(bool)
+	}
+
+	_, exist = results["has_parking"]
+	if !exist {
+		crawledData.HasParking = false
+	} else {
+		crawledData.HasParking = results["has_parking"].(bool)
 	}
 
 	_, exist = results["year"]
