@@ -199,23 +199,21 @@ func (q *Queries) GetUserFavoriteAds(ctx context.Context, userID string) ([]int6
 	return items, nil
 }
 
-const updateUser = `-- name: UpdateUser :one
+const updateUserPeriod = `-- name: UpdateUserPeriod :one
 UPDATE "user"
-SET role             = $1,
-    watchlist_period = $2
-WHERE tg_id = $3
+SET watchlist_period = $1
+WHERE tg_id = $2
 RETURNING tg_id, role, watchlist_period
 `
 
-type UpdateUserParams struct {
-	Role            NullUserRole `json:"role"`
-	WatchlistPeriod *int32       `json:"watchlist_period"`
-	TgID            string       `json:"tg_id"`
+type UpdateUserPeriodParams struct {
+	WatchlistPeriod *int32 `json:"watchlist_period"`
+	TgID            string `json:"tg_id"`
 }
 
 // Update user role and watchlist period
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUser, arg.Role, arg.WatchlistPeriod, arg.TgID)
+func (q *Queries) UpdateUserPeriod(ctx context.Context, arg UpdateUserPeriodParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserPeriod, arg.WatchlistPeriod, arg.TgID)
 	var i User
 	err := row.Scan(&i.TgID, &i.Role, &i.WatchlistPeriod)
 	return i, err

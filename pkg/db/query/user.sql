@@ -19,10 +19,9 @@ VALUES (sqlc.arg('tg_id'), sqlc.arg('role'), sqlc.arg('watchlist_period'))
 RETURNING *;
 
 -- Update user role and watchlist period
--- name: UpdateUser :one
+-- name: UpdateUserPeriod :one
 UPDATE "user"
-SET role             = sqlc.narg('role'),
-    watchlist_period = sqlc.narg('watchlist_period')
+SET watchlist_period = sqlc.narg('watchlist_period')
 WHERE tg_id = sqlc.arg('tg_id')
 RETURNING *;
 

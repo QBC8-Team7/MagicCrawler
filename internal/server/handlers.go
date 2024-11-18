@@ -998,22 +998,30 @@ func (s *Server) updateUserWatchListPeriod(c echo.Context) error {
 		})
 	}
 
-	adParam := new(sqlc.UpdateUserParams)
-	if err := c.Bind(adParam); err != nil {
+	type PeriodParam struct {
+		Period *int32 `json:"watchlist_period"`
+	}
+
+	periodParam := new(PeriodParam)
+	if err := c.Bind(periodParam); err != nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
 			Message: "invalid params",
 		})
 	}
-	adParam.TgID = userID
 
-	if adParam.WatchlistPeriod == nil {
+	if periodParam.Period == nil {
 		return c.JSON(http.StatusBadRequest, jsonResponse{
 			Success: false,
 			Message: "WatchList is Required",
 		})
 	}
-	_, err = s.db.UpdateUser(s.dbContext, *adParam)
+
+	updateUserPeriodParam := sqlc.UpdateUserPeriodParams{
+		WatchlistPeriod: periodParam.Period,
+		TgID:            userID,
+	}
+	_, err = s.db.UpdateUserPeriod(s.dbContext, updateUserPeriodParam)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, jsonResponse{
 			Success: false,
@@ -1021,10 +1029,10 @@ func (s *Server) updateUserWatchListPeriod(c echo.Context) error {
 		})
 	}
 
-	if *adParam.WatchlistPeriod == int32(0) {
+	if *periodParam.Period == int32(0) {
 		watchlist.GetService(s.dbContext, s.redis, s.db).StopWatch(userID)
 	} else {
-		watchlist.GetService(s.dbContext, s.redis, s.db).StartWatch(s.cfg.Bot.Token, s.logger, userID, int(*adParam.WatchlistPeriod))
+		watchlist.GetService(s.dbContext, s.redis, s.db).StartWatch(s.cfg.Bot.Token, s.logger, userID, int(*periodParam.Period))
 	}
 
 	return c.JSON(http.StatusOK, jsonResponse{

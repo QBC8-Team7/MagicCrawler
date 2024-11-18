@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Crawler Service every 10 minutes
+
+[Timer]
+OnUnitActiveSec=10min
+Unit=crawler.service
+
+[Install]
+WantedBy=timers.target
