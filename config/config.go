@@ -39,7 +39,10 @@ type Postgres struct {
 }
 
 type Crawler struct {
-	CrawlTime uint
+	Time           int
+	Seeds          []map[string]string
+	GeneralLogPath string
+	MetricLogPath  string
 }
 
 type Redis struct {
