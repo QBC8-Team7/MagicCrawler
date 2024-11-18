@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
@@ -29,17 +28,16 @@ type RepoResult struct {
 	Job   sqlc.CrawlJob
 }
 
-func (r JobRepository) CreateCrawlJobForSinglePageLinks(links []string, sourceName string) []error {
-	// TODO - maybe we need to use transaction here to make sure if all links inserted successfully
-	var errors []error
+func (r JobRepository) CreateCrawlJobForSinglePageLinks(links []string, sourceName string) error {
+	var allErrors error
 	for _, link := range links {
 		result := r.createCrawlJob(link, CRAWLJOB_TYPE_SINGLE, CRAWLJOB_STATUS_WAITING, sourceName)
 		if result.Err != nil {
-			errors = append(errors, result.Err)
+			allErrors = errors.Join(allErrors, result.Err)
 		}
 	}
 
-	return errors
+	return allErrors
 }
 
 func (r JobRepository) CreateCrawlJobArchivePageLink(link string, sourceName string) RepoResult {
@@ -47,8 +45,7 @@ func (r JobRepository) CreateCrawlJobArchivePageLink(link string, sourceName str
 }
 
 func (r JobRepository) createCrawlJob(link string, pageType string, status string, sourceName string) RepoResult {
-	fmt.Println(link)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	checkCrawlJobExistsParams := sqlc.CheckCrawlJobExistsParams{
@@ -113,7 +110,7 @@ func (r JobRepository) GetFirstWaitingCrawlJob() (sqlc.CrawlJob, error) {
 	return r.Queries.GetFirstCrawlJobByStatus(ctx, status)
 }
 
-func (r JobRepository) MakeOldCrawlJobsStatusFailed() error {
+func (r JobRepository) ChangeWaitingOrPickedCrawlJobsStatusToFailed() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
