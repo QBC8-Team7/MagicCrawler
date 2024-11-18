@@ -15,7 +15,7 @@ type AdminNotifier struct {
 func NewAdminNotifier(conf *config.Config, queries *sqlc.Queries) (*AdminNotifier, error) {
 	notificationLogger := logger.NewAppLogger(conf)
 	notificationLogger.InitCustomLogger(conf.Logger.Path, conf.Logger.SysPath)
-	notificationService, err := NewNotificationService(conf.Bot.Token, notificationLogger)
+	notificationService, err := GetService(conf.Bot.Token, notificationLogger)
 	if err != nil {
 		return &AdminNotifier{}, err
 	}
