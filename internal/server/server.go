@@ -60,9 +60,6 @@ func (s *Server) Run() error {
 
 	addr := fmt.Sprintf("%s:%s", s.cfg.Server.Host, s.cfg.Server.Port)
 
-	if s.cfg.Server.Mode == config.Development {
-		return s.router.Start(addr)
-	}
-	return s.router.StartTLS(addr, certFile, keyFile)
+	return s.router.Start(addr)
 
 }
