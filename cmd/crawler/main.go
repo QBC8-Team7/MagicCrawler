@@ -116,7 +116,7 @@ func main() {
 					mainLogger.Errorf(" | failed to send notify to admin: %s", err)
 				}
 			} else {
-				mainLogger.Infof(" | [DONE] | type: %s | ID: %d| link: %s", crawlJob.PageType, crawlJob.ID, crawlJob.Url)
+				mainLogger.Infof(" | [DONE] | type: %s | ID: %d | link: %s", crawlJob.PageType, crawlJob.ID, crawlJob.Url)
 			}
 			mainLogger.Info(" |--------------------------------------------------------------------------------------------------------")
 		}

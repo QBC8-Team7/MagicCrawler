@@ -244,6 +244,12 @@ func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledDat
 					} else if item.Disabled {
 						results["has_warehouse"] = false
 					}
+				} else if item.IconName == "parking" {
+					if !item.Disabled {
+						results["has_parking"] = true
+					} else if item.Disabled {
+						results["has_parking"] = false
+					}
 				} else if item.Title == "ساخت" {
 					results["year"] = item.Value
 				}
@@ -313,6 +319,13 @@ func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledDat
 		crawledData.HasElevator = results["has_elevator"].(bool)
 	}
 
+	_, exist = results["has_parking"]
+	if !exist {
+		crawledData.HasParking = false
+	} else {
+		crawledData.HasParking = results["has_parking"].(bool)
+	}
+
 	_, exist = results["year"]
 	if !exist {
 		crawledData.Year = ""
@@ -327,7 +340,15 @@ func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledDat
 	if !exist {
 		crawledData.FloorNumber = 0
 	} else {
-		crawledData.FloorNumber = helpers.UnsafeAtoi(helpers.ToEnglishDigits(helpers.GetFirstValueOfAPersianRange(results["floor_number"].(string))))
+		floorValues := helpers.ToEnglishDigits(results["floor_number"].(string))
+
+		if !strings.Contains(floorValues, "از") {
+			crawledData.FloorNumber = helpers.UnsafeAtoi(strings.TrimSpace(floorValues))
+		} else {
+			parts := strings.Split(floorValues, "از")
+			crawledData.FloorNumber = helpers.UnsafeAtoi(strings.TrimSpace(parts[0]))
+			crawledData.TotalFloors = helpers.UnsafeAtoi(strings.TrimSpace(parts[1]))
+		}
 	}
 
 	return nil
