@@ -13,14 +13,21 @@ postgres:
   dbname:
   SslMode:
 crawler:
-  crawlTime:
+  time:
+  seeds:
+    - url:
+      source:
+    - url:
+      source:
+  generalLogPath:
+  metricLogPath:
 logger:
   level:
   encoding:
   path:
   sysPath:
 redis:
-  host: localhost
-  port: 6379
+  host:
+  port:
   password:
-  db: test
+  db:

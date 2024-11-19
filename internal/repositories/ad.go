@@ -12,10 +12,12 @@ import (
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/helpers"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/structs"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
 )
 
 type AdRepository struct {
 	Queries *sqlc.Queries
+	Logger  *logger.AppLogger
 }
 
 type AdQueryResult struct {
@@ -25,7 +27,7 @@ type AdQueryResult struct {
 }
 
 func (r AdRepository) CreateOrUpdateAd(crawledData structs.CrawledData) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	result := r.FindAd(ctx, crawledData.PublisherAdKey)
@@ -35,21 +37,19 @@ func (r AdRepository) CreateOrUpdateAd(crawledData structs.CrawledData) error {
 	}
 
 	if result.Exist {
-		fmt.Println("Updating crawled data of single page to db")
-		err := r.UpdateAd(ctx, crawledData.PublisherAdKey, result.AdId, crawledData)
-		if err != nil {
-			fmt.Println("Error in updating data to db")
-			return err
+		r.Logger.Infof(" | updating ad... | ad_id: %d | publisher_key_id: %s", result.AdId, crawledData.PublisherAdKey)
+		updatingAdErr := r.UpdateAd(ctx, crawledData.PublisherAdKey, result.AdId, crawledData)
+		if updatingAdErr != nil {
+			return fmt.Errorf("error in updating ad: %s", updatingAdErr)
 		}
-		fmt.Println("==================> updated")
+		r.Logger.Infof(" | UPDATED | publisher_key_id: %s", crawledData.PublisherAdKey)
 	} else {
-		fmt.Println("Inserting crawled data of single page to db")
-		err := r.InsertAd(ctx, crawledData)
-		if err != nil {
-			fmt.Println("Error in inserting data to db")
-			return err
+		r.Logger.Infof(" | inserting ad... | ad_id: %d | publisher_key_id: %s", result.AdId, crawledData.PublisherAdKey)
+		insertingAdErr := r.InsertAd(ctx, crawledData)
+		if insertingAdErr != nil {
+			return fmt.Errorf("error in inserting ad: %s", insertingAdErr)
 		}
-		fmt.Println("==================> inserted")
+		r.Logger.Infof(" | INSERTED | publisher_key_id: %s", crawledData.PublisherAdKey)
 	}
 
 	return nil
@@ -83,21 +83,28 @@ func (r AdRepository) InsertAd(ctx context.Context, crawledData structs.CrawledD
 		return err
 	}
 
-	// TODO - use transaction for these
+	r.Logger.Infof(" | params prepared for inserting | publisher_key_id: %s", crawledData.PublisherAdKey)
+
 	ad, err := r.Queries.CreateAd(ctx, adParams)
 	if err != nil {
 		return err
 	}
+
+	r.Logger.Infof(" | ad inserted | publisher_key_id: %s", crawledData.PublisherAdKey)
 
 	_, err = r.InsertPrice(ctx, ad.ID, crawledData)
 	if err != nil {
 		return err
 	}
 
+	r.Logger.Infof(" | ad price inserted | publisher_key_id: %s", crawledData.PublisherAdKey)
+
 	err = r.InsertPicture(ctx, ad.ID, crawledData)
 	if err != nil {
 		return err
 	}
+
+	r.Logger.Infof(" | ad image inserted | publisher_key_id: %s", crawledData.PublisherAdKey)
 
 	return nil
 }
@@ -121,21 +128,28 @@ func (r AdRepository) UpdateAd(ctx context.Context, publisherAdKey string, adID 
 		return err
 	}
 
-	// TODO - use transaction for these
+	r.Logger.Infof(" | params prepared for updating | ad_id: %d | publisher_key_id: %s", adID, crawledData.PublisherAdKey)
+
 	_, err = r.Queries.UpdateAd(ctx, adParams)
 	if err != nil {
 		return err
 	}
+
+	r.Logger.Infof(" | main properties updated | ad_id: %d | publisher_key_id: %s", adID, crawledData.PublisherAdKey)
 
 	_, err = r.InsertPrice(ctx, adID, crawledData)
 	if err != nil {
 		return err
 	}
 
+	r.Logger.Infof(" | new price added | ad_id: %d | publisher_key_id: %s", adID, crawledData.PublisherAdKey)
+
 	err = r.UpdatePicture(ctx, adID, crawledData)
 	if err != nil {
 		return err
 	}
+
+	r.Logger.Infof(" | ad picture updated | ad_id: %d | publisher_key_id: %s", adID, crawledData.PublisherAdKey)
 
 	return nil
 }
@@ -179,7 +193,7 @@ func (r AdRepository) makeCreateAdParams(ctx context.Context, crawledData struct
 		TotalFloors:    nil,
 		HasWarehouse:   &crawledData.HasWarehouse,
 		HasElevator:    &crawledData.HasElevator,
-		HasParking:     nil,
+		HasParking:     &crawledData.HasParking,
 	}
 
 	if strings.TrimSpace(crawledData.Author) != "" {
@@ -194,6 +208,11 @@ func (r AdRepository) makeCreateAdParams(ctx context.Context, crawledData struct
 	if latitude != 0 && longitude != 0 {
 		params.Lat = &latitude
 		params.Lng = &longitude
+	}
+
+	int32TotalFloors := int32(crawledData.TotalFloors)
+	if int32TotalFloors != 0 {
+		params.TotalFloors = &int32TotalFloors
 	}
 
 	return params, nil

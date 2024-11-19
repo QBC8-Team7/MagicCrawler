@@ -3,10 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
-
 	"github.com/QBC8-Team7/MagicCrawler/internal/middleware"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/watchlist"
 	"github.com/labstack/echo/v4"
 	echoMiddlewares "github.com/labstack/echo/v4/middleware"
+	"time"
 
 	"github.com/QBC8-Team7/MagicCrawler/config"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
@@ -47,8 +48,12 @@ func NewServer(dbCtx context.Context, cfg *config.Config, db *sqlc.Queries, redi
 }
 
 func (s *Server) Run() error {
-	certFile := "/root/cert.crt"
-	keyFile := "/root/private.key"
+	defer watchlist.GetService(s.dbContext, s.redis, s.db).StopAll()
+
+	rateLimiterConfig := middleware.RateLimiterConfig{
+		Limit:  15,
+		Window: time.Minute,
+	}
 
 	s.router.Use(echoMiddlewares.CORSWithConfig(echoMiddlewares.CORSConfig{
 		AllowOrigins: []string{"*"},
@@ -57,12 +62,10 @@ func (s *Server) Run() error {
 	}))
 	s.router.Use(middleware.WithRequestLogger(s.logger))
 	s.router.Use(middleware.WithAuthentication(s.dbContext, s.db))
+	s.router.Use(middleware.WithRateLimiter(s.dbContext, s.redis, rateLimiterConfig, s.logger))
 
 	addr := fmt.Sprintf("%s:%s", s.cfg.Server.Host, s.cfg.Server.Port)
 
-	if s.cfg.Server.Mode == config.Development {
-		return s.router.Start(addr)
-	}
-	return s.router.StartTLS(addr, certFile, keyFile)
+	return s.router.Start(addr)
 
 }

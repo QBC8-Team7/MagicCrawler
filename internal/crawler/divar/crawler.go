@@ -5,17 +5,22 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/helpers"
 	"github.com/QBC8-Team7/MagicCrawler/internal/crawler/structs"
 	"github.com/QBC8-Team7/MagicCrawler/internal/repositories"
 	"github.com/QBC8-Team7/MagicCrawler/pkg/db/sqlc"
+	"github.com/QBC8-Team7/MagicCrawler/pkg/logger"
 )
 
 type DivarCrawler struct {
 	Repository repositories.CrawlerRepository
+	Logger     *logger.AppLogger
+}
+
+func (c DivarCrawler) GetLogger() *logger.AppLogger {
+	return c.Logger
 }
 
 func GetSourceName() string {
@@ -39,8 +44,6 @@ func (c DivarCrawler) CreateCrawlJobArchivePageLink(link string) repositories.Re
 }
 
 func (c DivarCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]string, error) {
-	fmt.Println("Get links from archive page")
-
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
 		return []string{}, fmt.Errorf("error parsing html: %s", err)
@@ -69,14 +72,15 @@ func (c DivarCrawler) GetSinglePageLinksFromArchivePage(htmlContent string) ([]s
 	return links, nil
 }
 
-func (c DivarCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (structs.CrawledData, error) {
-	defer wg.Done()
-	fmt.Println("crawl single page. jobID:", job.ID, " link:", job.Url)
+func (c DivarCrawler) CrawlItemPage(job sqlc.CrawlJob) (structs.CrawledData, error) {
+	c.GetLogger().Infof(" | crawl single page with %s crawler | JobID: %d", c.GetSourceName(), job.ID)
 
 	htmlContent, err := helpers.GetHtml(job.Url)
 	if err != nil {
 		return structs.CrawledData{}, err
 	}
+
+	c.GetLogger().Infof(" | extracted html | JobID: %d", job.ID)
 
 	crawledData := structs.CrawledData{
 		SourceName: GetSourceName(),
@@ -90,15 +94,21 @@ func (c DivarCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (stru
 		errors = append(errors, err)
 	}
 
+	c.GetLogger().Infof(" | extracted general properties | JobID: %d", job.ID)
+
 	err = c.catchPublishedAt(htmlContent, &crawledData)
 	if err != nil {
 		errors = append(errors, err)
 	}
 
+	c.GetLogger().Infof(" | extracted published at property | JobID: %d", job.ID)
+
 	err = c.catchPricesAndSomeOtherData(htmlContent, &crawledData)
 	if err != nil {
 		errors = append(errors, err)
 	}
+
+	c.GetLogger().Infof(" | extracted price values and some other properties | JobID: %d", job.ID)
 
 	if len(errors) > 0 {
 		_, err = c.Repository.UpdateCrawlJobStatus(job.ID, repositories.CRAWLJOB_STATUS_FAILED)
@@ -107,6 +117,8 @@ func (c DivarCrawler) CrawlItemPage(job sqlc.CrawlJob, wg *sync.WaitGroup) (stru
 		}
 		return structs.CrawledData{}, errors[0]
 	}
+
+	c.GetLogger().Infof(" | crawling single page finished | JobID: %d", job.ID)
 
 	return crawledData, nil
 }
@@ -191,7 +203,7 @@ func (c DivarCrawler) catchPublishedAt(htmlContent string, crawledData *structs.
 	doc.Find("title").Each(func(index int, item *goquery.Selection) {
 		titleValue := item.Text()
 		parts := strings.Split(titleValue, "-")
-		publishedAt = parts[1]
+		publishedAt = parts[len(parts)-1]
 	})
 
 	if publishedAt == "" {
@@ -231,6 +243,12 @@ func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledDat
 						results["has_warehouse"] = true
 					} else if item.Disabled {
 						results["has_warehouse"] = false
+					}
+				} else if item.IconName == "parking" {
+					if !item.Disabled {
+						results["has_parking"] = true
+					} else if item.Disabled {
+						results["has_parking"] = false
 					}
 				} else if item.Title == "ساخت" {
 					results["year"] = item.Value
@@ -301,6 +319,13 @@ func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledDat
 		crawledData.HasElevator = results["has_elevator"].(bool)
 	}
 
+	_, exist = results["has_parking"]
+	if !exist {
+		crawledData.HasParking = false
+	} else {
+		crawledData.HasParking = results["has_parking"].(bool)
+	}
+
 	_, exist = results["year"]
 	if !exist {
 		crawledData.Year = ""
@@ -315,7 +340,15 @@ func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledDat
 	if !exist {
 		crawledData.FloorNumber = 0
 	} else {
-		crawledData.FloorNumber = helpers.UnsafeAtoi(helpers.ToEnglishDigits(helpers.GetFirstValueOfAPersianRange(results["floor_number"].(string))))
+		floorValues := helpers.ToEnglishDigits(results["floor_number"].(string))
+
+		if !strings.Contains(floorValues, "از") {
+			crawledData.FloorNumber = helpers.UnsafeAtoi(strings.TrimSpace(floorValues))
+		} else {
+			parts := strings.Split(floorValues, "از")
+			crawledData.FloorNumber = helpers.UnsafeAtoi(strings.TrimSpace(parts[0]))
+			crawledData.TotalFloors = helpers.UnsafeAtoi(strings.TrimSpace(parts[1]))
+		}
 	}
 
 	return nil

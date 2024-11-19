@@ -1,0 +1,13 @@
+[Unit]
+Description=Go Crawler Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/magic-crawler
+ExecStart=/opt/magic-crawler/build/crawler-linux-amd64 -c /etc/magic-crawler/config.yml
+User=root
+Environment=GO_ENV=production
+
+[Install]
+WantedBy=multi-user.target
