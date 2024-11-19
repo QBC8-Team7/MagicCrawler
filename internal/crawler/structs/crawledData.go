@@ -17,6 +17,8 @@ type CrawledData struct {
 	FloorNumber      int
 	HasWarehouse     bool
 	HasElevator      bool
+	TotalFloors      int
+	HasParking       bool
 	TotalPrice       string
 	MonthlyRentPrice string
 	PricePerMeter    string
