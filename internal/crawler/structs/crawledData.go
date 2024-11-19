@@ -15,6 +15,7 @@ type CrawledData struct {
 	Age              int
 	PublisherAdKey   string
 	FloorNumber      int
+	TotalFloors      int
 	HasWarehouse     bool
 	HasElevator      bool
 	HasParking       bool

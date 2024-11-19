@@ -340,7 +340,15 @@ func (c DivarCrawler) catchPricesAndSomeOtherData(htmlContent string, crawledDat
 	if !exist {
 		crawledData.FloorNumber = 0
 	} else {
-		crawledData.FloorNumber = helpers.UnsafeAtoi(helpers.ToEnglishDigits(helpers.GetFirstValueOfAPersianRange(results["floor_number"].(string))))
+		floorValues := helpers.ToEnglishDigits(results["floor_number"].(string))
+
+		if !strings.Contains(floorValues, "از") {
+			crawledData.FloorNumber = helpers.UnsafeAtoi(strings.TrimSpace(floorValues))
+		} else {
+			parts := strings.Split(floorValues, "از")
+			crawledData.FloorNumber = helpers.UnsafeAtoi(strings.TrimSpace(parts[0]))
+			crawledData.TotalFloors = helpers.UnsafeAtoi(strings.TrimSpace(parts[1]))
+		}
 	}
 
 	return nil

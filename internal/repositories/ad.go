@@ -190,7 +190,6 @@ func (r AdRepository) makeCreateAdParams(ctx context.Context, crawledData struct
 		RoomsCount:     &int32RoomsCount,
 		Year:           &int32Year,
 		Floor:          &int32FloorNumber,
-		TotalFloors:    nil,
 		HasWarehouse:   &crawledData.HasWarehouse,
 		HasElevator:    &crawledData.HasElevator,
 		HasParking:     &crawledData.HasParking,
@@ -208,6 +207,11 @@ func (r AdRepository) makeCreateAdParams(ctx context.Context, crawledData struct
 	if latitude != 0 && longitude != 0 {
 		params.Lat = &latitude
 		params.Lng = &longitude
+	}
+
+	int32TotalFloors := int32(crawledData.TotalFloors)
+	if int32TotalFloors != 0 {
+		params.TotalFloors = &int32TotalFloors
 	}
 
 	return params, nil

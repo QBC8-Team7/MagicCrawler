@@ -75,16 +75,6 @@ func RemoveLastCurlyBrace(text string) string {
 	return strings.TrimSpace(trimmedText)
 }
 
-func GetFirstValueOfAPersianRange(str string) string {
-	if !strings.Contains(str, "از") {
-		return strings.TrimSpace(str)
-	}
-
-	parts := strings.Split(str, "از")
-
-	return strings.TrimSpace(parts[0])
-}
-
 func WordNumberToNumber(str string) int {
 	numbersMap := map[string]int{
 		"صفر":    0,
