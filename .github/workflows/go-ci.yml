@@ -30,7 +30,6 @@ jobs:
       - name: Run Tests
         run: go test ./... -v
 
-
   lint:
     name: Run Go Lint
     runs-on: ubuntu-latest
@@ -52,7 +51,8 @@ jobs:
       - name: Run GolangCI-Lint
         run: golangci-lint run ./...
 
-  build:
+  build-and-push:
+    name: Build and Push Combined Docker Image
     runs-on: ubuntu-latest
     needs: lint
 
@@ -60,131 +60,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - name: Log in to Docker Registry
+        run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry-c8b30dd0eb-magic-crawler.apps.ir-central1.arvancaas.ir -u ${{ secrets.REGISTRY_USERNAME }} --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v4
         with:
-          go-version: '1.22.3'
-
-      - name: Build app for Linux
-        run: make app-linux
-
-      - name: Build crawler for linux
-        run: make crawler-linux
-
-      - name: Upload app artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: app-linux
-          path: ./build/app-linux-amd64
-
-      - name: Upload crawler artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: crawler-linux
-          path: ./build/crawler-linux-amd64
-
-      - name: Upload app deployment artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: systemd-service
-          path: ./deployment/systemd/magic-crawler.service
-
-      - name: Upload crawler deployment artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: crawler-service
-          path: ./deployment/systemd/crawler.service
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Download app artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: app-linux
-
-      - name: Download crawler artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: crawler-linux
-
-      - name: Download app deployment artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: systemd-service
-
-      - name: Download crawler deployment artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: crawler-service
-
-      - name: Install SSH client
-        run: sudo apt-get update && sudo apt-get install -y ssh
-
-      - name: Add SSH key and configure known hosts
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          touch ~/.ssh/known_hosts
-          ssh-keygen -R ${{ secrets.SERVER_IP }} || true
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-
-      - name: Create target directory on the server
-        run: |
-          ssh root@${{ secrets.SERVER_IP }} "mkdir -p /opt/magic-crawler/build /opt/magic-crawler/deployment"
-
-      - name: List all files in the working directory (before sync)
-        run: |
-          echo "Listing files in current directory: $PWD"
-          ls -R .
-
-      - name: Stop the service before uploading new version
-        run: |
-          ssh root@${{ secrets.SERVER_IP }} "systemctl stop magic-crawler.service && systemctl stop crawler.service"
-
-      - name: Upload app binary file to the server
-        run: |
-          echo "Uploading app-linux binary to the server..."
-          scp ./app-linux-amd64 root@${{ secrets.SERVER_IP }}:/opt/magic-crawler/build/app-linux-amd64
-
-      - name: Upload crawler binary file to the server
-        run: |
-          echo "Uploading app-linux binary to the server..."
-          scp ./crawler-linux-amd64 root@${{ secrets.SERVER_IP }}:/opt/magic-crawler/build/crawler-linux-amd64
-
-      - name: Upload app deployment directory to the server
-        run: |
-          echo "Uploading deployment directory to the server..."
-          scp ./magic-crawler.service root@${{ secrets.SERVER_IP }}:/opt/magic-crawler/deployment/magic-crawler.service
-
-      - name: Upload crawler deployment directory to the server
-        run: |
-          echo "Uploading deployment directory to the server..."
-          scp ./crawler.service root@${{ secrets.SERVER_IP }}:/opt/magic-crawler/deployment/crawler.service
-
-      - name: Set permissions for binary
-        run: |
-          ssh root@${{ secrets.SERVER_IP }} "chmod +x /opt/magic-crawler/build/app-linux-amd64"
-
-      - name: Set permissions for binary
-        run: |
-          ssh root@${{ secrets.SERVER_IP }} "chmod +x /opt/magic-crawler/build/crawler-linux-amd64"
-
-      - name: Set permissions for deployment file
-        run: |
-          ssh root@${{ secrets.SERVER_IP }} "chmod 644 /opt/magic-crawler/deployment/magic-crawler.service"
-
-      - name: Set permissions for deployment file
-        run: |
-          ssh root@${{ secrets.SERVER_IP }} "chmod 644 /opt/magic-crawler/deployment/crawler.service"
-
-      - name: Restart and enable the app systemd service
-        run: |
-          ssh root@${{ secrets.SERVER_IP }} "systemctl daemon-reload && systemctl enable magic-crawler.service && systemctl restart magic-crawler.service && systemctl status magic-crawler.service"
-
-      - name: Restart and enable the crawler systemd service
-        run: |
-          ssh root@${{ secrets.SERVER_IP }} "systemctl daemon-reload && systemctl enable crawler.service && systemctl restart crawler.service && systemctl status crawler.service"
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: registry-c8b30dd0eb-magic-crawler.apps.ir-central1.arvancaas.ir/magic-crawler:latest
