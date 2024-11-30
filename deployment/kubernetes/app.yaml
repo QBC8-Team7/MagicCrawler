@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: magic-crawler-app
+  namespace: magic-crawler
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: magic-crawler-app
+  template:
+    metadata:
+      labels:
+        app: magic-crawler-app
+    spec:
+      imagePullSecrets:
+        - name: arvan-registry-secret
+      containers:
+        - name: app
+          image: registry-c8b30dd0eb-magic-crawler.apps.ir-central1.arvancaas.ir/magic-crawler:latest
+          args: ["app", "-c", "/opt/app/config.yaml"]
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: config-volume
+              mountPath: /opt/app
+      volumes:
+        - name: config-volume
+          configMap:
+            name: magic-crawler-config

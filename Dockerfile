@@ -1,4 +1,4 @@
-FROM golang:latest as builder
+FROM golang:latest AS builder
 WORKDIR /app
 COPY go.mod .
 COPY go.sum .
