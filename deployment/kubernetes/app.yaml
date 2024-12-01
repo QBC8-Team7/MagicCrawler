@@ -17,14 +17,18 @@ spec:
         - name: arvan-registry-secret
       containers:
         - name: app
-          image: registry-c8b30dd0eb-magic-crawler.apps.ir-central1.arvancaas.ir/magic-crawler:latest
+          image: registry-c8b30dd0eb-magic-crawler.apps.ir-central1.arvancaas.ir/magic-crawler:6b8a626
           args: ["app", "-c", "/opt/app/config.yaml"]
           ports:
             - containerPort: 8080
           volumeMounts:
             - name: config-volume
               mountPath: /opt/app
+            - name: log-volume
+              mountPath: /var/log
       volumes:
         - name: config-volume
           configMap:
             name: magic-crawler-config
+        - name: log-volume
+          emptyDir: {}

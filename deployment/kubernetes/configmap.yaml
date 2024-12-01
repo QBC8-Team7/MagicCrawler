@@ -20,7 +20,7 @@ data:
       dbname: magic-crawler
       SslMode: false
     crawler:
-      time: 5
+      time: 2
       seeds:
         - url: "https://divar.ir/s/tehran-province/buy-apartment?page=2"
           source: "divar"

@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: magic-crawler
+  name: magic-crawler-crawler
   namespace: magic-crawler
 spec:
-  schedule: "*/10 * * * *"
+  schedule: "*/5 * * * *"
   jobTemplate:
     spec:
       template:
@@ -13,14 +13,17 @@ spec:
             - name: arvan-registry-secret
           containers:
             - name: crawler
-              image: registry-c8b30dd0eb-magic-crawler.apps.ir-central1.arvancaas.ir/magic-crawler:latest
-              args: ["crawler", "-c", "/app/config.yaml"]
+              image: registry-c8b30dd0eb-magic-crawler.apps.ir-central1.arvancaas.ir/magic-crawler:6b8a626
+              args: ["crawler", "-c", "/opt/app/config.yaml"]
               volumeMounts:
                 - name: config-volume
-                  mountPath: /app/config.yml
-                  subPath: config.yml
+                  mountPath: /opt/app
+                - name: log-volume
+                  mountPath: /var/log
           restartPolicy: OnFailure
           volumes:
             - name: config-volume
               configMap:
                 name: magic-crawler-config
+            - name: log-volume
+              emptyDir: {}
